@@ -4,7 +4,7 @@ output_file_path = "./LibOnnxRuntime.jl"
 module_name = "LibOnnxRuntime"
 prologue_file_path = "./prologue.jl"
 epilogue_file_path = "./epilogue.jl"
-output_ignorelist = ["ORT_API_CALL", "ORTCHAR_T"]
+output_ignorelist = ["ORT_API_CALL", "ORTCHAR_T", "ORT_FILE"]
 print_using_CEnum = true
 
 [codegen]

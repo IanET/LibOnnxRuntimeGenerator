@@ -678,8 +678,6 @@ end
 
 const ORT_API_VERSION = 20
 
-const ORT_FILE = ORT_FILE_INTERNAL(__FILE__)
-
 # Export all
 for name in names(@__MODULE__; all=true)
     if name in [:eval, :include, Symbol("#eval"), Symbol("#include")]; continue end
