@@ -2,24 +2,320 @@ module LibOnnxRuntime
 
 using CEnum
 
-# 
-# Automatically generated file - do not edit
-#
+using Pkg.Artifacts
 
-onnxruntime = joinpath(@__DIR__, "onnxruntime.dll")
-
-function __init__()
-    # TODO - make a proper 'artifact'
-    chmod(onnxruntime, filemode(onnxruntime) | 0o755) # dll needs to executable
-end
+# TODO - Make arch aware
+const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes\\win-x64\\native\\onnxruntime.dll")
 
 
 mutable struct OrtStatus end
 
 const OrtStatusPtr = Ptr{OrtStatus}
 
+@cenum ONNXTensorElementDataType::UInt32 begin
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED = 0
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT = 1
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8 = 2
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8 = 3
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16 = 4
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16 = 5
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32 = 6
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64 = 7
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_STRING = 8
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL = 9
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16 = 10
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE = 11
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32 = 12
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64 = 13
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX64 = 14
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX128 = 15
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16 = 16
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT8E4M3FN = 17
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT8E4M3FNUZ = 18
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT8E5M2 = 19
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT8E5M2FNUZ = 20
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT4 = 21
+    ONNX_TENSOR_ELEMENT_DATA_TYPE_INT4 = 22
+end
+
+@cenum ONNXType::UInt32 begin
+    ONNX_TYPE_UNKNOWN = 0
+    ONNX_TYPE_TENSOR = 1
+    ONNX_TYPE_SEQUENCE = 2
+    ONNX_TYPE_MAP = 3
+    ONNX_TYPE_OPAQUE = 4
+    ONNX_TYPE_SPARSETENSOR = 5
+    ONNX_TYPE_OPTIONAL = 6
+end
+
+@cenum OrtSparseFormat::UInt32 begin
+    ORT_SPARSE_UNDEFINED = 0
+    ORT_SPARSE_COO = 1
+    ORT_SPARSE_CSRC = 2
+    ORT_SPARSE_BLOCK_SPARSE = 4
+end
+
+@cenum OrtSparseIndicesFormat::UInt32 begin
+    ORT_SPARSE_COO_INDICES = 0
+    ORT_SPARSE_CSR_INNER_INDICES = 1
+    ORT_SPARSE_CSR_OUTER_INDICES = 2
+    ORT_SPARSE_BLOCK_SPARSE_INDICES = 3
+end
+
+@cenum OrtLoggingLevel::UInt32 begin
+    ORT_LOGGING_LEVEL_VERBOSE = 0
+    ORT_LOGGING_LEVEL_INFO = 1
+    ORT_LOGGING_LEVEL_WARNING = 2
+    ORT_LOGGING_LEVEL_ERROR = 3
+    ORT_LOGGING_LEVEL_FATAL = 4
+end
+
+@cenum OrtErrorCode::UInt32 begin
+    ORT_OK = 0
+    ORT_FAIL = 1
+    ORT_INVALID_ARGUMENT = 2
+    ORT_NO_SUCHFILE = 3
+    ORT_NO_MODEL = 4
+    ORT_ENGINE_ERROR = 5
+    ORT_RUNTIME_EXCEPTION = 6
+    ORT_INVALID_PROTOBUF = 7
+    ORT_MODEL_LOADED = 8
+    ORT_NOT_IMPLEMENTED = 9
+    ORT_INVALID_GRAPH = 10
+    ORT_EP_FAIL = 11
+end
+
+@cenum OrtOpAttrType::UInt32 begin
+    ORT_OP_ATTR_UNDEFINED = 0
+    ORT_OP_ATTR_INT = 1
+    ORT_OP_ATTR_INTS = 2
+    ORT_OP_ATTR_FLOAT = 3
+    ORT_OP_ATTR_FLOATS = 4
+    ORT_OP_ATTR_STRING = 5
+    ORT_OP_ATTR_STRINGS = 6
+end
+
+mutable struct OrtEnv end
+
+mutable struct OrtMemoryInfo end
+
+mutable struct OrtIoBinding end
+
+mutable struct OrtSession end
+
+mutable struct OrtValue end
+
+mutable struct OrtRunOptions end
+
+mutable struct OrtTypeInfo end
+
+mutable struct OrtTensorTypeAndShapeInfo end
+
+mutable struct OrtMapTypeInfo end
+
+mutable struct OrtSequenceTypeInfo end
+
+mutable struct OrtOptionalTypeInfo end
+
+mutable struct OrtSessionOptions end
+
+mutable struct OrtCustomOpDomain end
+
+mutable struct OrtModelMetadata end
+
+mutable struct OrtThreadPoolParams end
+
+mutable struct OrtThreadingOptions end
+
+mutable struct OrtArenaCfg end
+
+mutable struct OrtPrepackedWeightsContainer end
+
+mutable struct OrtTensorRTProviderOptionsV2 end
+
+mutable struct OrtCUDAProviderOptionsV2 end
+
+mutable struct OrtCANNProviderOptions end
+
+mutable struct OrtDnnlProviderOptions end
+
+mutable struct OrtOp end
+
+mutable struct OrtOpAttr end
+
+mutable struct OrtLogger end
+
+mutable struct OrtShapeInferContext end
+
+mutable struct OrtLoraAdapter end
+
+struct OrtAllocator
+    version::UInt32
+    Alloc::Ptr{Cvoid}
+    Free::Ptr{Cvoid}
+    Info::Ptr{Cvoid}
+    Reserve::Ptr{Cvoid}
+end
+
+# typedef void ( ORT_API_CALL * OrtLoggingFunction
+const OrtLoggingFunction = Ptr{Cvoid}
+
+@cenum GraphOptimizationLevel::UInt32 begin
+    ORT_DISABLE_ALL = 0
+    ORT_ENABLE_BASIC = 1
+    ORT_ENABLE_EXTENDED = 2
+    ORT_ENABLE_ALL = 99
+end
+
+@cenum ExecutionMode::UInt32 begin
+    ORT_SEQUENTIAL = 0
+    ORT_PARALLEL = 1
+end
+
+@cenum OrtLanguageProjection::UInt32 begin
+    ORT_PROJECTION_C = 0
+    ORT_PROJECTION_CPLUSPLUS = 1
+    ORT_PROJECTION_CSHARP = 2
+    ORT_PROJECTION_PYTHON = 3
+    ORT_PROJECTION_JAVA = 4
+    ORT_PROJECTION_WINML = 5
+    ORT_PROJECTION_NODEJS = 6
+end
+
+mutable struct OrtKernelInfo end
+
+mutable struct OrtKernelContext end
+
+struct OrtCustomOp
+    version::UInt32
+    CreateKernel::Ptr{Cvoid}
+    GetName::Ptr{Cvoid}
+    GetExecutionProviderType::Ptr{Cvoid}
+    GetInputType::Ptr{Cvoid}
+    GetInputTypeCount::Ptr{Cvoid}
+    GetOutputType::Ptr{Cvoid}
+    GetOutputTypeCount::Ptr{Cvoid}
+    KernelCompute::Ptr{Cvoid}
+    KernelDestroy::Ptr{Cvoid}
+    GetInputCharacteristic::Ptr{Cvoid}
+    GetOutputCharacteristic::Ptr{Cvoid}
+    GetInputMemoryType::Ptr{Cvoid}
+    GetVariadicInputMinArity::Ptr{Cvoid}
+    GetVariadicInputHomogeneity::Ptr{Cvoid}
+    GetVariadicOutputMinArity::Ptr{Cvoid}
+    GetVariadicOutputHomogeneity::Ptr{Cvoid}
+    CreateKernelV2::Ptr{Cvoid}
+    KernelComputeV2::Ptr{Cvoid}
+    InferOutputShapeFn::Ptr{Cvoid}
+    GetStartVersion::Ptr{Cvoid}
+    GetEndVersion::Ptr{Cvoid}
+    GetMayInplace::Ptr{Cvoid}
+    ReleaseMayInplace::Ptr{Cvoid}
+    GetAliasMap::Ptr{Cvoid}
+    ReleaseAliasMap::Ptr{Cvoid}
+end
+
+@cenum OrtAllocatorType::Int32 begin
+    OrtInvalidAllocator = -1
+    OrtDeviceAllocator = 0
+    OrtArenaAllocator = 1
+end
+
+@cenum OrtMemType::Int32 begin
+    OrtMemTypeCPUInput = -2
+    OrtMemTypeCPUOutput = -1
+    OrtMemTypeCPU = -1
+    OrtMemTypeDefault = 0
+end
+
+@cenum OrtMemoryInfoDeviceType::UInt32 begin
+    OrtMemoryInfoDeviceType_CPU = 0
+    OrtMemoryInfoDeviceType_GPU = 1
+    OrtMemoryInfoDeviceType_FPGA = 2
+end
+
+@cenum OrtCudnnConvAlgoSearch::UInt32 begin
+    OrtCudnnConvAlgoSearchExhaustive = 0
+    OrtCudnnConvAlgoSearchHeuristic = 1
+    OrtCudnnConvAlgoSearchDefault = 2
+end
+
+struct OrtCUDAProviderOptions
+    device_id::Cint
+    cudnn_conv_algo_search::OrtCudnnConvAlgoSearch
+    gpu_mem_limit::Csize_t
+    arena_extend_strategy::Cint
+    do_copy_in_default_stream::Cint
+    has_user_compute_stream::Cint
+    user_compute_stream::Ptr{Cvoid}
+    default_memory_arena_cfg::Ptr{OrtArenaCfg}
+    tunable_op_enable::Cint
+    tunable_op_tuning_enable::Cint
+    tunable_op_max_tuning_duration_ms::Cint
+end
+
+struct OrtROCMProviderOptions
+    device_id::Cint
+    miopen_conv_exhaustive_search::Cint
+    gpu_mem_limit::Csize_t
+    arena_extend_strategy::Cint
+    do_copy_in_default_stream::Cint
+    has_user_compute_stream::Cint
+    user_compute_stream::Ptr{Cvoid}
+    default_memory_arena_cfg::Ptr{OrtArenaCfg}
+    enable_hip_graph::Cint
+    tunable_op_enable::Cint
+    tunable_op_tuning_enable::Cint
+    tunable_op_max_tuning_duration_ms::Cint
+end
+
+struct OrtTensorRTProviderOptions
+    device_id::Cint
+    has_user_compute_stream::Cint
+    user_compute_stream::Ptr{Cvoid}
+    trt_max_partition_iterations::Cint
+    trt_min_subgraph_size::Cint
+    trt_max_workspace_size::Csize_t
+    trt_fp16_enable::Cint
+    trt_int8_enable::Cint
+    trt_int8_calibration_table_name::Ptr{Cchar}
+    trt_int8_use_native_calibration_table::Cint
+    trt_dla_enable::Cint
+    trt_dla_core::Cint
+    trt_dump_subgraphs::Cint
+    trt_engine_cache_enable::Cint
+    trt_engine_cache_path::Ptr{Cchar}
+    trt_engine_decryption_enable::Cint
+    trt_engine_decryption_lib_path::Ptr{Cchar}
+    trt_force_sequential_engine_build::Cint
+end
+
+struct OrtMIGraphXProviderOptions
+    device_id::Cint
+    migraphx_fp16_enable::Cint
+    migraphx_int8_enable::Cint
+    migraphx_use_native_calibration_table::Cint
+    migraphx_int8_calibration_table_name::Ptr{Cchar}
+    migraphx_save_compiled_model::Cint
+    migraphx_save_model_path::Ptr{Cchar}
+    migraphx_load_compiled_model::Cint
+    migraphx_load_model_path::Ptr{Cchar}
+    migraphx_exhaustive_tune::Bool
+end
+
+struct OrtOpenVINOProviderOptions
+    device_type::Ptr{Cchar}
+    enable_npu_fast_compile::Cuchar
+    device_id::Ptr{Cchar}
+    num_of_threads::Csize_t
+    cache_dir::Ptr{Cchar}
+    context::Ptr{Cvoid}
+    enable_opencl_throttling::Cuchar
+    enable_dynamic_shapes::Cuchar
+end
+
 struct OrtApi
-    data::NTuple{1536, UInt8}
+    data::NTuple{2280, UInt8}
 end
 
 function Base.getproperty(x::Ptr{OrtApi}, f::Symbol)
@@ -215,6 +511,99 @@ function Base.getproperty(x::Ptr{OrtApi}, f::Symbol)
     f === :GetSparseTensorValues && return Ptr{Ptr{Cvoid}}(x + 1512)
     f === :GetSparseTensorIndicesTypeShape && return Ptr{Ptr{Cvoid}}(x + 1520)
     f === :GetSparseTensorIndices && return Ptr{Ptr{Cvoid}}(x + 1528)
+    f === :HasValue && return Ptr{Ptr{Cvoid}}(x + 1536)
+    f === :KernelContext_GetGPUComputeStream && return Ptr{Ptr{Cvoid}}(x + 1544)
+    f === :GetTensorMemoryInfo && return Ptr{Ptr{Cvoid}}(x + 1552)
+    f === :GetExecutionProviderApi && return Ptr{Ptr{Cvoid}}(x + 1560)
+    f === :SessionOptionsSetCustomCreateThreadFn && return Ptr{Ptr{Cvoid}}(x + 1568)
+    f === :SessionOptionsSetCustomThreadCreationOptions && return Ptr{Ptr{Cvoid}}(x + 1576)
+    f === :SessionOptionsSetCustomJoinThreadFn && return Ptr{Ptr{Cvoid}}(x + 1584)
+    f === :SetGlobalCustomCreateThreadFn && return Ptr{Ptr{Cvoid}}(x + 1592)
+    f === :SetGlobalCustomThreadCreationOptions && return Ptr{Ptr{Cvoid}}(x + 1600)
+    f === :SetGlobalCustomJoinThreadFn && return Ptr{Ptr{Cvoid}}(x + 1608)
+    f === :SynchronizeBoundInputs && return Ptr{Ptr{Cvoid}}(x + 1616)
+    f === :SynchronizeBoundOutputs && return Ptr{Ptr{Cvoid}}(x + 1624)
+    f === :SessionOptionsAppendExecutionProvider_CUDA_V2 && return Ptr{Ptr{Cvoid}}(x + 1632)
+    f === :CreateCUDAProviderOptions && return Ptr{Ptr{Cvoid}}(x + 1640)
+    f === :UpdateCUDAProviderOptions && return Ptr{Ptr{Cvoid}}(x + 1648)
+    f === :GetCUDAProviderOptionsAsString && return Ptr{Ptr{Cvoid}}(x + 1656)
+    f === :ReleaseCUDAProviderOptions && return Ptr{Ptr{Cvoid}}(x + 1664)
+    f === :SessionOptionsAppendExecutionProvider_MIGraphX && return Ptr{Ptr{Cvoid}}(x + 1672)
+    f === :AddExternalInitializers && return Ptr{Ptr{Cvoid}}(x + 1680)
+    f === :CreateOpAttr && return Ptr{Ptr{Cvoid}}(x + 1688)
+    f === :ReleaseOpAttr && return Ptr{Ptr{Cvoid}}(x + 1696)
+    f === :CreateOp && return Ptr{Ptr{Cvoid}}(x + 1704)
+    f === :InvokeOp && return Ptr{Ptr{Cvoid}}(x + 1712)
+    f === :ReleaseOp && return Ptr{Ptr{Cvoid}}(x + 1720)
+    f === :SessionOptionsAppendExecutionProvider && return Ptr{Ptr{Cvoid}}(x + 1728)
+    f === :CopyKernelInfo && return Ptr{Ptr{Cvoid}}(x + 1736)
+    f === :ReleaseKernelInfo && return Ptr{Ptr{Cvoid}}(x + 1744)
+    f === :GetTrainingApi && return Ptr{Ptr{Cvoid}}(x + 1752)
+    f === :SessionOptionsAppendExecutionProvider_CANN && return Ptr{Ptr{Cvoid}}(x + 1760)
+    f === :CreateCANNProviderOptions && return Ptr{Ptr{Cvoid}}(x + 1768)
+    f === :UpdateCANNProviderOptions && return Ptr{Ptr{Cvoid}}(x + 1776)
+    f === :GetCANNProviderOptionsAsString && return Ptr{Ptr{Cvoid}}(x + 1784)
+    f === :ReleaseCANNProviderOptions && return Ptr{Ptr{Cvoid}}(x + 1792)
+    f === :MemoryInfoGetDeviceType && return Ptr{Ptr{Cvoid}}(x + 1800)
+    f === :UpdateEnvWithCustomLogLevel && return Ptr{Ptr{Cvoid}}(x + 1808)
+    f === :SetGlobalIntraOpThreadAffinity && return Ptr{Ptr{Cvoid}}(x + 1816)
+    f === :RegisterCustomOpsLibrary_V2 && return Ptr{Ptr{Cvoid}}(x + 1824)
+    f === :RegisterCustomOpsUsingFunction && return Ptr{Ptr{Cvoid}}(x + 1832)
+    f === :KernelInfo_GetInputCount && return Ptr{Ptr{Cvoid}}(x + 1840)
+    f === :KernelInfo_GetOutputCount && return Ptr{Ptr{Cvoid}}(x + 1848)
+    f === :KernelInfo_GetInputName && return Ptr{Ptr{Cvoid}}(x + 1856)
+    f === :KernelInfo_GetOutputName && return Ptr{Ptr{Cvoid}}(x + 1864)
+    f === :KernelInfo_GetInputTypeInfo && return Ptr{Ptr{Cvoid}}(x + 1872)
+    f === :KernelInfo_GetOutputTypeInfo && return Ptr{Ptr{Cvoid}}(x + 1880)
+    f === :KernelInfoGetAttribute_tensor && return Ptr{Ptr{Cvoid}}(x + 1888)
+    f === :HasSessionConfigEntry && return Ptr{Ptr{Cvoid}}(x + 1896)
+    f === :GetSessionConfigEntry && return Ptr{Ptr{Cvoid}}(x + 1904)
+    f === :SessionOptionsAppendExecutionProvider_Dnnl && return Ptr{Ptr{Cvoid}}(x + 1912)
+    f === :CreateDnnlProviderOptions && return Ptr{Ptr{Cvoid}}(x + 1920)
+    f === :UpdateDnnlProviderOptions && return Ptr{Ptr{Cvoid}}(x + 1928)
+    f === :GetDnnlProviderOptionsAsString && return Ptr{Ptr{Cvoid}}(x + 1936)
+    f === :ReleaseDnnlProviderOptions && return Ptr{Ptr{Cvoid}}(x + 1944)
+    f === :KernelInfo_GetNodeName && return Ptr{Ptr{Cvoid}}(x + 1952)
+    f === :KernelInfo_GetLogger && return Ptr{Ptr{Cvoid}}(x + 1960)
+    f === :KernelContext_GetLogger && return Ptr{Ptr{Cvoid}}(x + 1968)
+    f === :Logger_LogMessage && return Ptr{Ptr{Cvoid}}(x + 1976)
+    f === :Logger_GetLoggingSeverityLevel && return Ptr{Ptr{Cvoid}}(x + 1984)
+    f === :KernelInfoGetConstantInput_tensor && return Ptr{Ptr{Cvoid}}(x + 1992)
+    f === :CastTypeInfoToOptionalTypeInfo && return Ptr{Ptr{Cvoid}}(x + 2000)
+    f === :GetOptionalContainedTypeInfo && return Ptr{Ptr{Cvoid}}(x + 2008)
+    f === :GetResizedStringTensorElementBuffer && return Ptr{Ptr{Cvoid}}(x + 2016)
+    f === :KernelContext_GetAllocator && return Ptr{Ptr{Cvoid}}(x + 2024)
+    f === :GetBuildInfoString && return Ptr{Ptr{Cvoid}}(x + 2032)
+    f === :CreateROCMProviderOptions && return Ptr{Ptr{Cvoid}}(x + 2040)
+    f === :UpdateROCMProviderOptions && return Ptr{Ptr{Cvoid}}(x + 2048)
+    f === :GetROCMProviderOptionsAsString && return Ptr{Ptr{Cvoid}}(x + 2056)
+    f === :ReleaseROCMProviderOptions && return Ptr{Ptr{Cvoid}}(x + 2064)
+    f === :CreateAndRegisterAllocatorV2 && return Ptr{Ptr{Cvoid}}(x + 2072)
+    f === :RunAsync && return Ptr{Ptr{Cvoid}}(x + 2080)
+    f === :UpdateTensorRTProviderOptionsWithValue && return Ptr{Ptr{Cvoid}}(x + 2088)
+    f === :GetTensorRTProviderOptionsByName && return Ptr{Ptr{Cvoid}}(x + 2096)
+    f === :UpdateCUDAProviderOptionsWithValue && return Ptr{Ptr{Cvoid}}(x + 2104)
+    f === :GetCUDAProviderOptionsByName && return Ptr{Ptr{Cvoid}}(x + 2112)
+    f === :KernelContext_GetResource && return Ptr{Ptr{Cvoid}}(x + 2120)
+    f === :SetUserLoggingFunction && return Ptr{Ptr{Cvoid}}(x + 2128)
+    f === :ShapeInferContext_GetInputCount && return Ptr{Ptr{Cvoid}}(x + 2136)
+    f === :ShapeInferContext_GetInputTypeShape && return Ptr{Ptr{Cvoid}}(x + 2144)
+    f === :ShapeInferContext_GetAttribute && return Ptr{Ptr{Cvoid}}(x + 2152)
+    f === :ShapeInferContext_SetOutputTypeShape && return Ptr{Ptr{Cvoid}}(x + 2160)
+    f === :SetSymbolicDimensions && return Ptr{Ptr{Cvoid}}(x + 2168)
+    f === :ReadOpAttr && return Ptr{Ptr{Cvoid}}(x + 2176)
+    f === :SetDeterministicCompute && return Ptr{Ptr{Cvoid}}(x + 2184)
+    f === :KernelContext_ParallelFor && return Ptr{Ptr{Cvoid}}(x + 2192)
+    f === :SessionOptionsAppendExecutionProvider_OpenVINO_V2 && return Ptr{Ptr{Cvoid}}(x + 2200)
+    f === :SessionOptionsAppendExecutionProvider_VitisAI && return Ptr{Ptr{Cvoid}}(x + 2208)
+    f === :KernelContext_GetScratchBuffer && return Ptr{Ptr{Cvoid}}(x + 2216)
+    f === :KernelInfoGetAllocator && return Ptr{Ptr{Cvoid}}(x + 2224)
+    f === :AddExternalInitializersFromFilesInMemory && return Ptr{Ptr{Cvoid}}(x + 2232)
+    f === :CreateLoraAdapter && return Ptr{Ptr{Cvoid}}(x + 2240)
+    f === :CreateLoraAdapterFromArray && return Ptr{Ptr{Cvoid}}(x + 2248)
+    f === :ReleaseLoraAdapter && return Ptr{Ptr{Cvoid}}(x + 2256)
+    f === :RunOptionsAddActiveLoraAdapter && return Ptr{Ptr{Cvoid}}(x + 2264)
+    f === :SetEpDynamicOptions && return Ptr{Ptr{Cvoid}}(x + 2272)
     return getfield(x, f)
 end
 
@@ -229,225 +618,7 @@ function Base.setproperty!(x::Ptr{OrtApi}, f::Symbol, v)
     unsafe_store!(getproperty(x, f), v)
 end
 
-@cenum ONNXTensorElementDataType::UInt32 begin
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED = 0
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT = 1
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8 = 2
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8 = 3
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16 = 4
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16 = 5
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32 = 6
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64 = 7
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_STRING = 8
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL = 9
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16 = 10
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE = 11
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT32 = 12
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT64 = 13
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX64 = 14
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_COMPLEX128 = 15
-    ONNX_TENSOR_ELEMENT_DATA_TYPE_BFLOAT16 = 16
-end
-
-@cenum ONNXType::UInt32 begin
-    ONNX_TYPE_UNKNOWN = 0
-    ONNX_TYPE_TENSOR = 1
-    ONNX_TYPE_SEQUENCE = 2
-    ONNX_TYPE_MAP = 3
-    ONNX_TYPE_OPAQUE = 4
-    ONNX_TYPE_SPARSETENSOR = 5
-end
-
-@cenum OrtSparseFormat::UInt32 begin
-    ORT_SPARSE_UNDEFINED = 0
-    ORT_SPARSE_COO = 1
-    ORT_SPARSE_CSRC = 2
-    ORT_SPARSE_BLOCK_SPARSE = 4
-end
-
-@cenum OrtSparseIndicesFormat::UInt32 begin
-    ORT_SPARSE_COO_INDICES = 0
-    ORT_SPARSE_CSR_INNER_INDICES = 1
-    ORT_SPARSE_CSR_OUTER_INDICES = 2
-    ORT_SPARSE_BLOCK_SPARSE_INDICES = 3
-end
-
-@cenum OrtLoggingLevel::UInt32 begin
-    ORT_LOGGING_LEVEL_VERBOSE = 0
-    ORT_LOGGING_LEVEL_INFO = 1
-    ORT_LOGGING_LEVEL_WARNING = 2
-    ORT_LOGGING_LEVEL_ERROR = 3
-    ORT_LOGGING_LEVEL_FATAL = 4
-end
-
-@cenum OrtErrorCode::UInt32 begin
-    ORT_OK = 0
-    ORT_FAIL = 1
-    ORT_INVALID_ARGUMENT = 2
-    ORT_NO_SUCHFILE = 3
-    ORT_NO_MODEL = 4
-    ORT_ENGINE_ERROR = 5
-    ORT_RUNTIME_EXCEPTION = 6
-    ORT_INVALID_PROTOBUF = 7
-    ORT_MODEL_LOADED = 8
-    ORT_NOT_IMPLEMENTED = 9
-    ORT_INVALID_GRAPH = 10
-    ORT_EP_FAIL = 11
-end
-
-mutable struct OrtEnv end
-
-mutable struct OrtMemoryInfo end
-
-mutable struct OrtIoBinding end
-
-mutable struct OrtSession end
-
-mutable struct OrtValue end
-
-mutable struct OrtRunOptions end
-
-mutable struct OrtTypeInfo end
-
-mutable struct OrtTensorTypeAndShapeInfo end
-
-mutable struct OrtSessionOptions end
-
-mutable struct OrtCustomOpDomain end
-
-mutable struct OrtMapTypeInfo end
-
-mutable struct OrtSequenceTypeInfo end
-
-mutable struct OrtModelMetadata end
-
-mutable struct OrtThreadPoolParams end
-
-mutable struct OrtThreadingOptions end
-
-mutable struct OrtArenaCfg end
-
-mutable struct OrtPrepackedWeightsContainer end
-
-mutable struct OrtTensorRTProviderOptionsV2 end
-
-struct OrtAllocator
-    version::UInt32
-    Alloc::Ptr{Cvoid}
-    Free::Ptr{Cvoid}
-    Info::Ptr{Cvoid}
-end
-
-# typedef void ( ORT_API_CALL * OrtLoggingFunction
-const OrtLoggingFunction = Ptr{Cvoid}
-
-@cenum GraphOptimizationLevel::UInt32 begin
-    ORT_DISABLE_ALL = 0
-    ORT_ENABLE_BASIC = 1
-    ORT_ENABLE_EXTENDED = 2
-    ORT_ENABLE_ALL = 99
-end
-
-@cenum ExecutionMode::UInt32 begin
-    ORT_SEQUENTIAL = 0
-    ORT_PARALLEL = 1
-end
-
-@cenum OrtLanguageProjection::UInt32 begin
-    ORT_PROJECTION_C = 0
-    ORT_PROJECTION_CPLUSPLUS = 1
-    ORT_PROJECTION_CSHARP = 2
-    ORT_PROJECTION_PYTHON = 3
-    ORT_PROJECTION_JAVA = 4
-    ORT_PROJECTION_WINML = 5
-    ORT_PROJECTION_NODEJS = 6
-end
-
-mutable struct OrtKernelInfo end
-
-mutable struct OrtKernelContext end
-
-struct OrtCustomOp
-    version::UInt32
-    CreateKernel::Ptr{Cvoid}
-    GetName::Ptr{Cvoid}
-    GetExecutionProviderType::Ptr{Cvoid}
-    GetInputType::Ptr{Cvoid}
-    GetInputTypeCount::Ptr{Cvoid}
-    GetOutputType::Ptr{Cvoid}
-    GetOutputTypeCount::Ptr{Cvoid}
-    KernelCompute::Ptr{Cvoid}
-    KernelDestroy::Ptr{Cvoid}
-    GetInputCharacteristic::Ptr{Cvoid}
-    GetOutputCharacteristic::Ptr{Cvoid}
-end
-
-@cenum OrtAllocatorType::Int32 begin
-    Invalid = -1
-    OrtDeviceAllocator = 0
-    OrtArenaAllocator = 1
-end
-
-@cenum OrtMemType::Int32 begin
-    OrtMemTypeCPUInput = -2
-    OrtMemTypeCPUOutput = -1
-    OrtMemTypeCPU = -1
-    OrtMemTypeDefault = 0
-end
-
-@cenum OrtCudnnConvAlgoSearch::UInt32 begin
-    EXHAUSTIVE = 0
-    HEURISTIC = 1
-    DEFAULT = 2
-end
-
-struct OrtCUDAProviderOptions
-    device_id::Cint
-    cudnn_conv_algo_search::OrtCudnnConvAlgoSearch
-    gpu_mem_limit::Csize_t
-    arena_extend_strategy::Cint
-    do_copy_in_default_stream::Cint
-    has_user_compute_stream::Cint
-    user_compute_stream::Ptr{Cvoid}
-    default_memory_arena_cfg::Ptr{OrtArenaCfg}
-end
-
-struct OrtROCMProviderOptions
-    device_id::Cint
-    miopen_conv_exhaustive_search::Cint
-    gpu_mem_limit::Csize_t
-    arena_extend_strategy::Cint
-end
-
-struct OrtTensorRTProviderOptions
-    device_id::Cint
-    has_user_compute_stream::Cint
-    user_compute_stream::Ptr{Cvoid}
-    trt_max_partition_iterations::Cint
-    trt_min_subgraph_size::Cint
-    trt_max_workspace_size::Csize_t
-    trt_fp16_enable::Cint
-    trt_int8_enable::Cint
-    trt_int8_calibration_table_name::Ptr{Cchar}
-    trt_int8_use_native_calibration_table::Cint
-    trt_dla_enable::Cint
-    trt_dla_core::Cint
-    trt_dump_subgraphs::Cint
-    trt_engine_cache_enable::Cint
-    trt_engine_cache_path::Ptr{Cchar}
-    trt_engine_decryption_enable::Cint
-    trt_engine_decryption_lib_path::Ptr{Cchar}
-    trt_force_sequential_engine_build::Cint
-end
-
-struct OrtOpenVINOProviderOptions
-    device_type::Ptr{Cchar}
-    enable_vpu_fast_compile::Cuchar
-    device_id::Ptr{Cchar}
-    num_of_threads::Csize_t
-    use_compiled_network::Cuchar
-    blob_dump_path::Ptr{Cchar}
-end
+mutable struct OrtTrainingApi end
 
 struct OrtApiBase
     GetApi::Ptr{Cvoid}
@@ -455,20 +626,64 @@ struct OrtApiBase
 end
 
 function OrtGetApiBase()
-    ccall((:OrtGetApiBase, onnxruntime), Ptr{OrtApiBase}, ())
+    @ccall OnnxRuntime.OrtGetApiBase()::Ptr{OrtApiBase}
 end
+
+# typedef void ( * OrtThreadWorkerFn ) ( void * ort_worker_fn_param )
+const OrtThreadWorkerFn = Ptr{Cvoid}
+
+struct OrtCustomHandleType
+    __place_holder::Cchar
+end
+
+const OrtCustomThreadHandle = Ptr{OrtCustomHandleType}
+
+# typedef OrtCustomThreadHandle ( * OrtCustomCreateThreadFn ) ( void * ort_custom_thread_creation_options , OrtThreadWorkerFn ort_thread_worker_fn , void * ort_worker_fn_param )
+const OrtCustomCreateThreadFn = Ptr{Cvoid}
+
+# typedef void ( * OrtCustomJoinThreadFn ) ( OrtCustomThreadHandle ort_custom_thread_handle )
+const OrtCustomJoinThreadFn = Ptr{Cvoid}
+
+# typedef OrtStatus * ( ORT_API_CALL * RegisterCustomOpsFn
+const RegisterCustomOpsFn = Ptr{Cvoid}
+
+# typedef void ( * RunAsyncCallbackFn ) ( void * user_data , OrtValue * * outputs , size_t num_outputs , OrtStatusPtr status )
+const RunAsyncCallbackFn = Ptr{Cvoid}
 
 @cenum OrtCustomOpInputOutputCharacteristic::UInt32 begin
     INPUT_OUTPUT_REQUIRED = 0
     INPUT_OUTPUT_OPTIONAL = 1
+    INPUT_OUTPUT_VARIADIC = 2
 end
 
 function OrtSessionOptionsAppendExecutionProvider_CUDA(options, device_id)
-    ccall((:OrtSessionOptionsAppendExecutionProvider_CUDA, onnxruntime), OrtStatusPtr, (Ptr{OrtSessionOptions}, Cint), options, device_id)
+    @ccall OnnxRuntime.OrtSessionOptionsAppendExecutionProvider_CUDA(options::Ptr{OrtSessionOptions}, device_id::Cint)::OrtStatusPtr
 end
 
-const ORT_API_VERSION = 9
+function OrtSessionOptionsAppendExecutionProvider_ROCM(options, device_id)
+    @ccall OnnxRuntime.OrtSessionOptionsAppendExecutionProvider_ROCM(options::Ptr{OrtSessionOptions}, device_id::Cint)::OrtStatusPtr
+end
 
-const OrtCustomOpApi = OrtApi
+function OrtSessionOptionsAppendExecutionProvider_MIGraphX(options, device_id)
+    @ccall OnnxRuntime.OrtSessionOptionsAppendExecutionProvider_MIGraphX(options::Ptr{OrtSessionOptions}, device_id::Cint)::OrtStatusPtr
+end
+
+function OrtSessionOptionsAppendExecutionProvider_Dnnl(options, use_arena)
+    @ccall OnnxRuntime.OrtSessionOptionsAppendExecutionProvider_Dnnl(options::Ptr{OrtSessionOptions}, use_arena::Cint)::OrtStatusPtr
+end
+
+function OrtSessionOptionsAppendExecutionProvider_Tensorrt(options, device_id)
+    @ccall OnnxRuntime.OrtSessionOptionsAppendExecutionProvider_Tensorrt(options::Ptr{OrtSessionOptions}, device_id::Cint)::OrtStatusPtr
+end
+
+const ORT_API_VERSION = 20
+
+const ORT_FILE = ORT_FILE_INTERNAL(__FILE__)
+
+# Export all
+for name in names(@__MODULE__; all=true)
+    if name in [:eval, :include, Symbol("#eval"), Symbol("#include")]; continue end
+    @eval export $name
+end
 
 end # module
