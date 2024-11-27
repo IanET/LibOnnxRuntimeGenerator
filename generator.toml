@@ -1,6 +1,11 @@
 [general]
-library_name = "onnxruntime"
+library_name = "OnnxRuntime"
 output_file_path = "./LibOnnxRuntime.jl"
 module_name = "LibOnnxRuntime"
 prologue_file_path = "./prologue.jl"
-output_ignorelist = ["ORT_API_CALL", "ORTCHAR_T"]
+epilogue_file_path = "./epilogue.jl"
+output_ignorelist = ["ORT_API_CALL", "ORTCHAR_T", "ORT_FILE"]
+print_using_CEnum = true
+
+[codegen]
+use_ccall_macro = true
