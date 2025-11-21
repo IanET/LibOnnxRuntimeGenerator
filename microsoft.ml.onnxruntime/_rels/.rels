@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/Microsoft.ML.OnnxRuntime.nuspec" Id="R691C56B02D390B99" />
-  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/863f74dd0936408cbb3be811f60c641c.psmdcp" Id="R8F284AA663A8DBCE" />
+  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/9f36366555c947ba9548d9e09816b26e.psmdcp" Id="RC7C90EEEC87B1EA8" />
 </Relationships>
