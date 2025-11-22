@@ -10,7 +10,7 @@ using Pkg.Artifacts
     else # Sys.ARCH == :aarch64
         const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes\\win-arm64\\native\\onnxruntime.dll")
     end
-elseif Sys.islinux
+elseif Sys.islinux()
     @static if Sys.ARCH == :x86_64
         const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes/linux-x64/native/libonnxruntime.so")
     else # Sys.ARCH == :aarch64
