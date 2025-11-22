@@ -1,11 +1,22 @@
 module LibOnnxRuntime
 
-using CEnum
+using CEnum: CEnum, @cenum
 
 using Pkg.Artifacts
 
-# TODO - Make arch aware
-const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes\\win-x64\\native\\onnxruntime.dll")
+@static if Sys.iswindows()
+    @static if Sys.ARCH == :x86_64
+        const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes\\win-x64\\native\\onnxruntime.dll")
+    else # Sys.ARCH == :aarch64
+        const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes\\win-arm64\\native\\onnxruntime.dll")
+    end
+elseif Sys.islinux()
+    @static if Sys.ARCH == :x86_64
+        const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes/linux-x64/native/libonnxruntime.so")
+    else # Sys.ARCH == :aarch64
+        const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes/linux-arm64/native/libonnxruntime.so")
+    end
+end
 
 
 mutable struct OrtStatus end
@@ -83,6 +94,9 @@ end
     ORT_NOT_IMPLEMENTED = 9
     ORT_INVALID_GRAPH = 10
     ORT_EP_FAIL = 11
+    ORT_MODEL_LOAD_CANCELED = 12
+    ORT_MODEL_REQUIRES_COMPILATION = 13
+    ORT_NOT_FOUND = 14
 end
 
 @cenum OrtOpAttrType::UInt32 begin
@@ -93,6 +107,8 @@ end
     ORT_OP_ATTR_FLOATS = 4
     ORT_OP_ATTR_STRING = 5
     ORT_OP_ATTR_STRINGS = 6
+    ORT_OP_ATTR_GRAPH = 7
+    ORT_OP_ATTR_TENSOR = 8
 end
 
 mutable struct OrtEnv end
@@ -133,6 +149,8 @@ mutable struct OrtPrepackedWeightsContainer end
 
 mutable struct OrtTensorRTProviderOptionsV2 end
 
+mutable struct OrtNvTensorRtRtxProviderOptions end
+
 mutable struct OrtCUDAProviderOptionsV2 end
 
 mutable struct OrtCANNProviderOptions end
@@ -149,12 +167,34 @@ mutable struct OrtShapeInferContext end
 
 mutable struct OrtLoraAdapter end
 
+mutable struct OrtValueInfo end
+
+mutable struct OrtNode end
+
+mutable struct OrtGraph end
+
+mutable struct OrtModel end
+
+mutable struct OrtModelCompilationOptions end
+
+mutable struct OrtHardwareDevice end
+
+mutable struct OrtEpDevice end
+
+mutable struct OrtKeyValuePairs end
+
+mutable struct OrtSyncStream end
+
+mutable struct OrtExternalInitializerInfo end
+
 struct OrtAllocator
     version::UInt32
     Alloc::Ptr{Cvoid}
     Free::Ptr{Cvoid}
     Info::Ptr{Cvoid}
     Reserve::Ptr{Cvoid}
+    GetStats::Ptr{Cvoid}
+    AllocOnStream::Ptr{Cvoid}
 end
 
 # typedef void ( ORT_API_CALL * OrtLoggingFunction
@@ -164,6 +204,7 @@ const OrtLoggingFunction = Ptr{Cvoid}
     ORT_DISABLE_ALL = 0
     ORT_ENABLE_BASIC = 1
     ORT_ENABLE_EXTENDED = 2
+    ORT_ENABLE_LAYOUT = 3
     ORT_ENABLE_ALL = 99
 end
 
@@ -219,6 +260,7 @@ end
     OrtInvalidAllocator = -1
     OrtDeviceAllocator = 0
     OrtArenaAllocator = 1
+    OrtReadOnlyAllocator = 2
 end
 
 @cenum OrtMemType::Int32 begin
@@ -228,11 +270,42 @@ end
     OrtMemTypeDefault = 0
 end
 
+@cenum OrtDeviceMemoryType::UInt32 begin
+    OrtDeviceMemoryType_DEFAULT = 0
+    OrtDeviceMemoryType_HOST_ACCESSIBLE = 5
+end
+
 @cenum OrtMemoryInfoDeviceType::UInt32 begin
     OrtMemoryInfoDeviceType_CPU = 0
     OrtMemoryInfoDeviceType_GPU = 1
     OrtMemoryInfoDeviceType_FPGA = 2
+    OrtMemoryInfoDeviceType_NPU = 3
 end
+
+@cenum OrtHardwareDeviceType::UInt32 begin
+    OrtHardwareDeviceType_CPU = 0
+    OrtHardwareDeviceType_GPU = 1
+    OrtHardwareDeviceType_NPU = 2
+end
+
+@cenum OrtExecutionProviderDevicePolicy::UInt32 begin
+    OrtExecutionProviderDevicePolicy_DEFAULT = 0
+    OrtExecutionProviderDevicePolicy_PREFER_CPU = 1
+    OrtExecutionProviderDevicePolicy_PREFER_NPU = 2
+    OrtExecutionProviderDevicePolicy_PREFER_GPU = 3
+    OrtExecutionProviderDevicePolicy_MAX_PERFORMANCE = 4
+    OrtExecutionProviderDevicePolicy_MAX_EFFICIENCY = 5
+    OrtExecutionProviderDevicePolicy_MIN_OVERALL_POWER = 6
+end
+
+# typedef OrtStatus * ( ORT_API_CALL * EpSelectionDelegate
+const EpSelectionDelegate = Ptr{Cvoid}
+
+# typedef OrtStatus * ( ORT_API_CALL * OrtWriteBufferFunc
+const OrtWriteBufferFunc = Ptr{Cvoid}
+
+# typedef OrtStatus * ( ORT_API_CALL * OrtGetInitializerLocationFunc
+const OrtGetInitializerLocationFunc = Ptr{Cvoid}
 
 @cenum OrtCudnnConvAlgoSearch::UInt32 begin
     OrtCudnnConvAlgoSearchExhaustive = 0
@@ -293,6 +366,7 @@ end
 struct OrtMIGraphXProviderOptions
     device_id::Cint
     migraphx_fp16_enable::Cint
+    migraphx_fp8_enable::Cint
     migraphx_int8_enable::Cint
     migraphx_use_native_calibration_table::Cint
     migraphx_int8_calibration_table_name::Ptr{Cchar}
@@ -301,6 +375,8 @@ struct OrtMIGraphXProviderOptions
     migraphx_load_compiled_model::Cint
     migraphx_load_model_path::Ptr{Cchar}
     migraphx_exhaustive_tune::Bool
+    migraphx_mem_limit::Csize_t
+    migraphx_arena_extend_strategy::Cint
 end
 
 struct OrtOpenVINOProviderOptions
@@ -315,7 +391,7 @@ struct OrtOpenVINOProviderOptions
 end
 
 struct OrtApi
-    data::NTuple{2280, UInt8}
+    data::NTuple{3120, UInt8}
 end
 
 function Base.getproperty(x::Ptr{OrtApi}, f::Symbol)
@@ -604,6 +680,111 @@ function Base.getproperty(x::Ptr{OrtApi}, f::Symbol)
     f === :ReleaseLoraAdapter && return Ptr{Ptr{Cvoid}}(x + 2256)
     f === :RunOptionsAddActiveLoraAdapter && return Ptr{Ptr{Cvoid}}(x + 2264)
     f === :SetEpDynamicOptions && return Ptr{Ptr{Cvoid}}(x + 2272)
+    f === :ReleaseValueInfo && return Ptr{Ptr{Cvoid}}(x + 2280)
+    f === :ReleaseNode && return Ptr{Ptr{Cvoid}}(x + 2288)
+    f === :ReleaseGraph && return Ptr{Ptr{Cvoid}}(x + 2296)
+    f === :ReleaseModel && return Ptr{Ptr{Cvoid}}(x + 2304)
+    f === :GetValueInfoName && return Ptr{Ptr{Cvoid}}(x + 2312)
+    f === :GetValueInfoTypeInfo && return Ptr{Ptr{Cvoid}}(x + 2320)
+    f === :GetModelEditorApi && return Ptr{Ptr{Cvoid}}(x + 2328)
+    f === :CreateTensorWithDataAndDeleterAsOrtValue && return Ptr{Ptr{Cvoid}}(x + 2336)
+    f === :SessionOptionsSetLoadCancellationFlag && return Ptr{Ptr{Cvoid}}(x + 2344)
+    f === :GetCompileApi && return Ptr{Ptr{Cvoid}}(x + 2352)
+    f === :CreateKeyValuePairs && return Ptr{Ptr{Cvoid}}(x + 2360)
+    f === :AddKeyValuePair && return Ptr{Ptr{Cvoid}}(x + 2368)
+    f === :GetKeyValue && return Ptr{Ptr{Cvoid}}(x + 2376)
+    f === :GetKeyValuePairs && return Ptr{Ptr{Cvoid}}(x + 2384)
+    f === :RemoveKeyValuePair && return Ptr{Ptr{Cvoid}}(x + 2392)
+    f === :ReleaseKeyValuePairs && return Ptr{Ptr{Cvoid}}(x + 2400)
+    f === :RegisterExecutionProviderLibrary && return Ptr{Ptr{Cvoid}}(x + 2408)
+    f === :UnregisterExecutionProviderLibrary && return Ptr{Ptr{Cvoid}}(x + 2416)
+    f === :GetEpDevices && return Ptr{Ptr{Cvoid}}(x + 2424)
+    f === :SessionOptionsAppendExecutionProvider_V2 && return Ptr{Ptr{Cvoid}}(x + 2432)
+    f === :SessionOptionsSetEpSelectionPolicy && return Ptr{Ptr{Cvoid}}(x + 2440)
+    f === :SessionOptionsSetEpSelectionPolicyDelegate && return Ptr{Ptr{Cvoid}}(x + 2448)
+    f === :HardwareDevice_Type && return Ptr{Ptr{Cvoid}}(x + 2456)
+    f === :HardwareDevice_VendorId && return Ptr{Ptr{Cvoid}}(x + 2464)
+    f === :HardwareDevice_Vendor && return Ptr{Ptr{Cvoid}}(x + 2472)
+    f === :HardwareDevice_DeviceId && return Ptr{Ptr{Cvoid}}(x + 2480)
+    f === :HardwareDevice_Metadata && return Ptr{Ptr{Cvoid}}(x + 2488)
+    f === :EpDevice_EpName && return Ptr{Ptr{Cvoid}}(x + 2496)
+    f === :EpDevice_EpVendor && return Ptr{Ptr{Cvoid}}(x + 2504)
+    f === :EpDevice_EpMetadata && return Ptr{Ptr{Cvoid}}(x + 2512)
+    f === :EpDevice_EpOptions && return Ptr{Ptr{Cvoid}}(x + 2520)
+    f === :EpDevice_Device && return Ptr{Ptr{Cvoid}}(x + 2528)
+    f === :GetEpApi && return Ptr{Ptr{Cvoid}}(x + 2536)
+    f === :GetTensorSizeInBytes && return Ptr{Ptr{Cvoid}}(x + 2544)
+    f === :AllocatorGetStats && return Ptr{Ptr{Cvoid}}(x + 2552)
+    f === :CreateMemoryInfo_V2 && return Ptr{Ptr{Cvoid}}(x + 2560)
+    f === :MemoryInfoGetDeviceMemType && return Ptr{Ptr{Cvoid}}(x + 2568)
+    f === :MemoryInfoGetVendorId && return Ptr{Ptr{Cvoid}}(x + 2576)
+    f === :ValueInfo_GetValueProducer && return Ptr{Ptr{Cvoid}}(x + 2584)
+    f === :ValueInfo_GetValueNumConsumers && return Ptr{Ptr{Cvoid}}(x + 2592)
+    f === :ValueInfo_GetValueConsumers && return Ptr{Ptr{Cvoid}}(x + 2600)
+    f === :ValueInfo_GetInitializerValue && return Ptr{Ptr{Cvoid}}(x + 2608)
+    f === :ValueInfo_GetExternalInitializerInfo && return Ptr{Ptr{Cvoid}}(x + 2616)
+    f === :ValueInfo_IsRequiredGraphInput && return Ptr{Ptr{Cvoid}}(x + 2624)
+    f === :ValueInfo_IsOptionalGraphInput && return Ptr{Ptr{Cvoid}}(x + 2632)
+    f === :ValueInfo_IsGraphOutput && return Ptr{Ptr{Cvoid}}(x + 2640)
+    f === :ValueInfo_IsConstantInitializer && return Ptr{Ptr{Cvoid}}(x + 2648)
+    f === :ValueInfo_IsFromOuterScope && return Ptr{Ptr{Cvoid}}(x + 2656)
+    f === :Graph_GetName && return Ptr{Ptr{Cvoid}}(x + 2664)
+    f === :Graph_GetModelPath && return Ptr{Ptr{Cvoid}}(x + 2672)
+    f === :Graph_GetOnnxIRVersion && return Ptr{Ptr{Cvoid}}(x + 2680)
+    f === :Graph_GetNumOperatorSets && return Ptr{Ptr{Cvoid}}(x + 2688)
+    f === :Graph_GetOperatorSets && return Ptr{Ptr{Cvoid}}(x + 2696)
+    f === :Graph_GetNumInputs && return Ptr{Ptr{Cvoid}}(x + 2704)
+    f === :Graph_GetInputs && return Ptr{Ptr{Cvoid}}(x + 2712)
+    f === :Graph_GetNumOutputs && return Ptr{Ptr{Cvoid}}(x + 2720)
+    f === :Graph_GetOutputs && return Ptr{Ptr{Cvoid}}(x + 2728)
+    f === :Graph_GetNumInitializers && return Ptr{Ptr{Cvoid}}(x + 2736)
+    f === :Graph_GetInitializers && return Ptr{Ptr{Cvoid}}(x + 2744)
+    f === :Graph_GetNumNodes && return Ptr{Ptr{Cvoid}}(x + 2752)
+    f === :Graph_GetNodes && return Ptr{Ptr{Cvoid}}(x + 2760)
+    f === :Graph_GetParentNode && return Ptr{Ptr{Cvoid}}(x + 2768)
+    f === :Graph_GetGraphView && return Ptr{Ptr{Cvoid}}(x + 2776)
+    f === :Node_GetId && return Ptr{Ptr{Cvoid}}(x + 2784)
+    f === :Node_GetName && return Ptr{Ptr{Cvoid}}(x + 2792)
+    f === :Node_GetOperatorType && return Ptr{Ptr{Cvoid}}(x + 2800)
+    f === :Node_GetDomain && return Ptr{Ptr{Cvoid}}(x + 2808)
+    f === :Node_GetSinceVersion && return Ptr{Ptr{Cvoid}}(x + 2816)
+    f === :Node_GetNumInputs && return Ptr{Ptr{Cvoid}}(x + 2824)
+    f === :Node_GetInputs && return Ptr{Ptr{Cvoid}}(x + 2832)
+    f === :Node_GetNumOutputs && return Ptr{Ptr{Cvoid}}(x + 2840)
+    f === :Node_GetOutputs && return Ptr{Ptr{Cvoid}}(x + 2848)
+    f === :Node_GetNumImplicitInputs && return Ptr{Ptr{Cvoid}}(x + 2856)
+    f === :Node_GetImplicitInputs && return Ptr{Ptr{Cvoid}}(x + 2864)
+    f === :Node_GetNumAttributes && return Ptr{Ptr{Cvoid}}(x + 2872)
+    f === :Node_GetAttributes && return Ptr{Ptr{Cvoid}}(x + 2880)
+    f === :Node_GetAttributeByName && return Ptr{Ptr{Cvoid}}(x + 2888)
+    f === :OpAttr_GetTensorAttributeAsOrtValue && return Ptr{Ptr{Cvoid}}(x + 2896)
+    f === :OpAttr_GetType && return Ptr{Ptr{Cvoid}}(x + 2904)
+    f === :OpAttr_GetName && return Ptr{Ptr{Cvoid}}(x + 2912)
+    f === :Node_GetNumSubgraphs && return Ptr{Ptr{Cvoid}}(x + 2920)
+    f === :Node_GetSubgraphs && return Ptr{Ptr{Cvoid}}(x + 2928)
+    f === :Node_GetGraph && return Ptr{Ptr{Cvoid}}(x + 2936)
+    f === :Node_GetEpName && return Ptr{Ptr{Cvoid}}(x + 2944)
+    f === :ReleaseExternalInitializerInfo && return Ptr{Ptr{Cvoid}}(x + 2952)
+    f === :ExternalInitializerInfo_GetFilePath && return Ptr{Ptr{Cvoid}}(x + 2960)
+    f === :ExternalInitializerInfo_GetFileOffset && return Ptr{Ptr{Cvoid}}(x + 2968)
+    f === :ExternalInitializerInfo_GetByteSize && return Ptr{Ptr{Cvoid}}(x + 2976)
+    f === :GetRunConfigEntry && return Ptr{Ptr{Cvoid}}(x + 2984)
+    f === :EpDevice_MemoryInfo && return Ptr{Ptr{Cvoid}}(x + 2992)
+    f === :CreateSharedAllocator && return Ptr{Ptr{Cvoid}}(x + 3000)
+    f === :GetSharedAllocator && return Ptr{Ptr{Cvoid}}(x + 3008)
+    f === :ReleaseSharedAllocator && return Ptr{Ptr{Cvoid}}(x + 3016)
+    f === :GetTensorData && return Ptr{Ptr{Cvoid}}(x + 3024)
+    f === :GetSessionOptionsConfigEntries && return Ptr{Ptr{Cvoid}}(x + 3032)
+    f === :SessionGetMemoryInfoForInputs && return Ptr{Ptr{Cvoid}}(x + 3040)
+    f === :SessionGetMemoryInfoForOutputs && return Ptr{Ptr{Cvoid}}(x + 3048)
+    f === :SessionGetEpDeviceForInputs && return Ptr{Ptr{Cvoid}}(x + 3056)
+    f === :CreateSyncStreamForEpDevice && return Ptr{Ptr{Cvoid}}(x + 3064)
+    f === :SyncStream_GetHandle && return Ptr{Ptr{Cvoid}}(x + 3072)
+    f === :ReleaseSyncStream && return Ptr{Ptr{Cvoid}}(x + 3080)
+    f === :CopyTensors && return Ptr{Ptr{Cvoid}}(x + 3088)
+    f === :Graph_GetModelMetadata && return Ptr{Ptr{Cvoid}}(x + 3096)
+    f === :GetModelCompatibilityForEpDevices && return Ptr{Ptr{Cvoid}}(x + 3104)
+    f === :CreateExternalInitializerInfo && return Ptr{Ptr{Cvoid}}(x + 3112)
     return getfield(x, f)
 end
 
@@ -618,7 +799,74 @@ function Base.setproperty!(x::Ptr{OrtApi}, f::Symbol, v)
     unsafe_store!(getproperty(x, f), v)
 end
 
+function Base.propertynames(x::OrtApi, private::Bool = false)
+    (:CreateStatus, :GetErrorCode, :GetErrorMessage, :CreateEnv, :CreateEnvWithCustomLogger, :EnableTelemetryEvents, :DisableTelemetryEvents, :CreateSession, :CreateSessionFromArray, :Run, :CreateSessionOptions, :SetOptimizedModelFilePath, :CloneSessionOptions, :SetSessionExecutionMode, :EnableProfiling, :DisableProfiling, :EnableMemPattern, :DisableMemPattern, :EnableCpuMemArena, :DisableCpuMemArena, :SetSessionLogId, :SetSessionLogVerbosityLevel, :SetSessionLogSeverityLevel, :SetSessionGraphOptimizationLevel, :SetIntraOpNumThreads, :SetInterOpNumThreads, :CreateCustomOpDomain, :CustomOpDomain_Add, :AddCustomOpDomain, :RegisterCustomOpsLibrary, :SessionGetInputCount, :SessionGetOutputCount, :SessionGetOverridableInitializerCount, :SessionGetInputTypeInfo, :SessionGetOutputTypeInfo, :SessionGetOverridableInitializerTypeInfo, :SessionGetInputName, :SessionGetOutputName, :SessionGetOverridableInitializerName, :CreateRunOptions, :RunOptionsSetRunLogVerbosityLevel, :RunOptionsSetRunLogSeverityLevel, :RunOptionsSetRunTag, :RunOptionsGetRunLogVerbosityLevel, :RunOptionsGetRunLogSeverityLevel, :RunOptionsGetRunTag, :RunOptionsSetTerminate, :RunOptionsUnsetTerminate, :CreateTensorAsOrtValue, :CreateTensorWithDataAsOrtValue, :IsTensor, :GetTensorMutableData, :FillStringTensor, :GetStringTensorDataLength, :GetStringTensorContent, :CastTypeInfoToTensorInfo, :GetOnnxTypeFromTypeInfo, :CreateTensorTypeAndShapeInfo, :SetTensorElementType, :SetDimensions, :GetTensorElementType, :GetDimensionsCount, :GetDimensions, :GetSymbolicDimensions, :GetTensorShapeElementCount, :GetTensorTypeAndShape, :GetTypeInfo, :GetValueType, :CreateMemoryInfo, :CreateCpuMemoryInfo, :CompareMemoryInfo, :MemoryInfoGetName, :MemoryInfoGetId, :MemoryInfoGetMemType, :MemoryInfoGetType, :AllocatorAlloc, :AllocatorFree, :AllocatorGetInfo, :GetAllocatorWithDefaultOptions, :AddFreeDimensionOverride, :GetValue, :GetValueCount, :CreateValue, :CreateOpaqueValue, :GetOpaqueValue, :KernelInfoGetAttribute_float, :KernelInfoGetAttribute_int64, :KernelInfoGetAttribute_string, :KernelContext_GetInputCount, :KernelContext_GetOutputCount, :KernelContext_GetInput, :KernelContext_GetOutput, :ReleaseEnv, :ReleaseStatus, :ReleaseMemoryInfo, :ReleaseSession, :ReleaseValue, :ReleaseRunOptions, :ReleaseTypeInfo, :ReleaseTensorTypeAndShapeInfo, :ReleaseSessionOptions, :ReleaseCustomOpDomain, :GetDenotationFromTypeInfo, :CastTypeInfoToMapTypeInfo, :CastTypeInfoToSequenceTypeInfo, :GetMapKeyType, :GetMapValueType, :GetSequenceElementType, :ReleaseMapTypeInfo, :ReleaseSequenceTypeInfo, :SessionEndProfiling, :SessionGetModelMetadata, :ModelMetadataGetProducerName, :ModelMetadataGetGraphName, :ModelMetadataGetDomain, :ModelMetadataGetDescription, :ModelMetadataLookupCustomMetadataMap, :ModelMetadataGetVersion, :ReleaseModelMetadata, :CreateEnvWithGlobalThreadPools, :DisablePerSessionThreads, :CreateThreadingOptions, :ReleaseThreadingOptions, :ModelMetadataGetCustomMetadataMapKeys, :AddFreeDimensionOverrideByName, :GetAvailableProviders, :ReleaseAvailableProviders, :GetStringTensorElementLength, :GetStringTensorElement, :FillStringTensorElement, :AddSessionConfigEntry, :CreateAllocator, :ReleaseAllocator, :RunWithBinding, :CreateIoBinding, :ReleaseIoBinding, :BindInput, :BindOutput, :BindOutputToDevice, :GetBoundOutputNames, :GetBoundOutputValues, :ClearBoundInputs, :ClearBoundOutputs, :TensorAt, :CreateAndRegisterAllocator, :SetLanguageProjection, :SessionGetProfilingStartTimeNs, :SetGlobalIntraOpNumThreads, :SetGlobalInterOpNumThreads, :SetGlobalSpinControl, :AddInitializer, :CreateEnvWithCustomLoggerAndGlobalThreadPools, :SessionOptionsAppendExecutionProvider_CUDA, :SessionOptionsAppendExecutionProvider_ROCM, :SessionOptionsAppendExecutionProvider_OpenVINO, :SetGlobalDenormalAsZero, :CreateArenaCfg, :ReleaseArenaCfg, :ModelMetadataGetGraphDescription, :SessionOptionsAppendExecutionProvider_TensorRT, :SetCurrentGpuDeviceId, :GetCurrentGpuDeviceId, :KernelInfoGetAttributeArray_float, :KernelInfoGetAttributeArray_int64, :CreateArenaCfgV2, :AddRunConfigEntry, :CreatePrepackedWeightsContainer, :ReleasePrepackedWeightsContainer, :CreateSessionWithPrepackedWeightsContainer, :CreateSessionFromArrayWithPrepackedWeightsContainer, :SessionOptionsAppendExecutionProvider_TensorRT_V2, :CreateTensorRTProviderOptions, :UpdateTensorRTProviderOptions, :GetTensorRTProviderOptionsAsString, :ReleaseTensorRTProviderOptions, :EnableOrtCustomOps, :RegisterAllocator, :UnregisterAllocator, :IsSparseTensor, :CreateSparseTensorAsOrtValue, :FillSparseTensorCoo, :FillSparseTensorCsr, :FillSparseTensorBlockSparse, :CreateSparseTensorWithValuesAsOrtValue, :UseCooIndices, :UseCsrIndices, :UseBlockSparseIndices, :GetSparseTensorFormat, :GetSparseTensorValuesTypeAndShape, :GetSparseTensorValues, :GetSparseTensorIndicesTypeShape, :GetSparseTensorIndices, :HasValue, :KernelContext_GetGPUComputeStream, :GetTensorMemoryInfo, :GetExecutionProviderApi, :SessionOptionsSetCustomCreateThreadFn, :SessionOptionsSetCustomThreadCreationOptions, :SessionOptionsSetCustomJoinThreadFn, :SetGlobalCustomCreateThreadFn, :SetGlobalCustomThreadCreationOptions, :SetGlobalCustomJoinThreadFn, :SynchronizeBoundInputs, :SynchronizeBoundOutputs, :SessionOptionsAppendExecutionProvider_CUDA_V2, :CreateCUDAProviderOptions, :UpdateCUDAProviderOptions, :GetCUDAProviderOptionsAsString, :ReleaseCUDAProviderOptions, :SessionOptionsAppendExecutionProvider_MIGraphX, :AddExternalInitializers, :CreateOpAttr, :ReleaseOpAttr, :CreateOp, :InvokeOp, :ReleaseOp, :SessionOptionsAppendExecutionProvider, :CopyKernelInfo, :ReleaseKernelInfo, :GetTrainingApi, :SessionOptionsAppendExecutionProvider_CANN, :CreateCANNProviderOptions, :UpdateCANNProviderOptions, :GetCANNProviderOptionsAsString, :ReleaseCANNProviderOptions, :MemoryInfoGetDeviceType, :UpdateEnvWithCustomLogLevel, :SetGlobalIntraOpThreadAffinity, :RegisterCustomOpsLibrary_V2, :RegisterCustomOpsUsingFunction, :KernelInfo_GetInputCount, :KernelInfo_GetOutputCount, :KernelInfo_GetInputName, :KernelInfo_GetOutputName, :KernelInfo_GetInputTypeInfo, :KernelInfo_GetOutputTypeInfo, :KernelInfoGetAttribute_tensor, :HasSessionConfigEntry, :GetSessionConfigEntry, :SessionOptionsAppendExecutionProvider_Dnnl, :CreateDnnlProviderOptions, :UpdateDnnlProviderOptions, :GetDnnlProviderOptionsAsString, :ReleaseDnnlProviderOptions, :KernelInfo_GetNodeName, :KernelInfo_GetLogger, :KernelContext_GetLogger, :Logger_LogMessage, :Logger_GetLoggingSeverityLevel, :KernelInfoGetConstantInput_tensor, :CastTypeInfoToOptionalTypeInfo, :GetOptionalContainedTypeInfo, :GetResizedStringTensorElementBuffer, :KernelContext_GetAllocator, :GetBuildInfoString, :CreateROCMProviderOptions, :UpdateROCMProviderOptions, :GetROCMProviderOptionsAsString, :ReleaseROCMProviderOptions, :CreateAndRegisterAllocatorV2, :RunAsync, :UpdateTensorRTProviderOptionsWithValue, :GetTensorRTProviderOptionsByName, :UpdateCUDAProviderOptionsWithValue, :GetCUDAProviderOptionsByName, :KernelContext_GetResource, :SetUserLoggingFunction, :ShapeInferContext_GetInputCount, :ShapeInferContext_GetInputTypeShape, :ShapeInferContext_GetAttribute, :ShapeInferContext_SetOutputTypeShape, :SetSymbolicDimensions, :ReadOpAttr, :SetDeterministicCompute, :KernelContext_ParallelFor, :SessionOptionsAppendExecutionProvider_OpenVINO_V2, :SessionOptionsAppendExecutionProvider_VitisAI, :KernelContext_GetScratchBuffer, :KernelInfoGetAllocator, :AddExternalInitializersFromFilesInMemory, :CreateLoraAdapter, :CreateLoraAdapterFromArray, :ReleaseLoraAdapter, :RunOptionsAddActiveLoraAdapter, :SetEpDynamicOptions, :ReleaseValueInfo, :ReleaseNode, :ReleaseGraph, :ReleaseModel, :GetValueInfoName, :GetValueInfoTypeInfo, :GetModelEditorApi, :CreateTensorWithDataAndDeleterAsOrtValue, :SessionOptionsSetLoadCancellationFlag, :GetCompileApi, :CreateKeyValuePairs, :AddKeyValuePair, :GetKeyValue, :GetKeyValuePairs, :RemoveKeyValuePair, :ReleaseKeyValuePairs, :RegisterExecutionProviderLibrary, :UnregisterExecutionProviderLibrary, :GetEpDevices, :SessionOptionsAppendExecutionProvider_V2, :SessionOptionsSetEpSelectionPolicy, :SessionOptionsSetEpSelectionPolicyDelegate, :HardwareDevice_Type, :HardwareDevice_VendorId, :HardwareDevice_Vendor, :HardwareDevice_DeviceId, :HardwareDevice_Metadata, :EpDevice_EpName, :EpDevice_EpVendor, :EpDevice_EpMetadata, :EpDevice_EpOptions, :EpDevice_Device, :GetEpApi, :GetTensorSizeInBytes, :AllocatorGetStats, :CreateMemoryInfo_V2, :MemoryInfoGetDeviceMemType, :MemoryInfoGetVendorId, :ValueInfo_GetValueProducer, :ValueInfo_GetValueNumConsumers, :ValueInfo_GetValueConsumers, :ValueInfo_GetInitializerValue, :ValueInfo_GetExternalInitializerInfo, :ValueInfo_IsRequiredGraphInput, :ValueInfo_IsOptionalGraphInput, :ValueInfo_IsGraphOutput, :ValueInfo_IsConstantInitializer, :ValueInfo_IsFromOuterScope, :Graph_GetName, :Graph_GetModelPath, :Graph_GetOnnxIRVersion, :Graph_GetNumOperatorSets, :Graph_GetOperatorSets, :Graph_GetNumInputs, :Graph_GetInputs, :Graph_GetNumOutputs, :Graph_GetOutputs, :Graph_GetNumInitializers, :Graph_GetInitializers, :Graph_GetNumNodes, :Graph_GetNodes, :Graph_GetParentNode, :Graph_GetGraphView, :Node_GetId, :Node_GetName, :Node_GetOperatorType, :Node_GetDomain, :Node_GetSinceVersion, :Node_GetNumInputs, :Node_GetInputs, :Node_GetNumOutputs, :Node_GetOutputs, :Node_GetNumImplicitInputs, :Node_GetImplicitInputs, :Node_GetNumAttributes, :Node_GetAttributes, :Node_GetAttributeByName, :OpAttr_GetTensorAttributeAsOrtValue, :OpAttr_GetType, :OpAttr_GetName, :Node_GetNumSubgraphs, :Node_GetSubgraphs, :Node_GetGraph, :Node_GetEpName, :ReleaseExternalInitializerInfo, :ExternalInitializerInfo_GetFilePath, :ExternalInitializerInfo_GetFileOffset, :ExternalInitializerInfo_GetByteSize, :GetRunConfigEntry, :EpDevice_MemoryInfo, :CreateSharedAllocator, :GetSharedAllocator, :ReleaseSharedAllocator, :GetTensorData, :GetSessionOptionsConfigEntries, :SessionGetMemoryInfoForInputs, :SessionGetMemoryInfoForOutputs, :SessionGetEpDeviceForInputs, :CreateSyncStreamForEpDevice, :SyncStream_GetHandle, :ReleaseSyncStream, :CopyTensors, :Graph_GetModelMetadata, :GetModelCompatibilityForEpDevices, :CreateExternalInitializerInfo, if private
+            fieldnames(typeof(x))
+        else
+            ()
+        end...)
+end
+
 mutable struct OrtTrainingApi end
+
+struct OrtModelEditorApi
+    CreateTensorTypeInfo::Ptr{Cvoid}
+    CreateSparseTensorTypeInfo::Ptr{Cvoid}
+    CreateMapTypeInfo::Ptr{Cvoid}
+    CreateSequenceTypeInfo::Ptr{Cvoid}
+    CreateOptionalTypeInfo::Ptr{Cvoid}
+    CreateValueInfo::Ptr{Cvoid}
+    CreateNode::Ptr{Cvoid}
+    CreateGraph::Ptr{Cvoid}
+    SetGraphInputs::Ptr{Cvoid}
+    SetGraphOutputs::Ptr{Cvoid}
+    AddInitializerToGraph::Ptr{Cvoid}
+    AddNodeToGraph::Ptr{Cvoid}
+    CreateModel::Ptr{Cvoid}
+    AddGraphToModel::Ptr{Cvoid}
+    CreateSessionFromModel::Ptr{Cvoid}
+    CreateModelEditorSession::Ptr{Cvoid}
+    CreateModelEditorSessionFromArray::Ptr{Cvoid}
+    SessionGetOpsetForDomain::Ptr{Cvoid}
+    ApplyModelToModelEditorSession::Ptr{Cvoid}
+    FinalizeModelEditorSession::Ptr{Cvoid}
+end
+
+struct OrtCompileApi
+    ReleaseModelCompilationOptions::Ptr{Cvoid}
+    CreateModelCompilationOptionsFromSessionOptions::Ptr{Cvoid}
+    ModelCompilationOptions_SetInputModelPath::Ptr{Cvoid}
+    ModelCompilationOptions_SetInputModelFromBuffer::Ptr{Cvoid}
+    ModelCompilationOptions_SetOutputModelPath::Ptr{Cvoid}
+    ModelCompilationOptions_SetOutputModelExternalInitializersFile::Ptr{Cvoid}
+    ModelCompilationOptions_SetOutputModelBuffer::Ptr{Cvoid}
+    ModelCompilationOptions_SetEpContextEmbedMode::Ptr{Cvoid}
+    CompileModel::Ptr{Cvoid}
+    ModelCompilationOptions_SetFlags::Ptr{Cvoid}
+    ModelCompilationOptions_SetEpContextBinaryInformation::Ptr{Cvoid}
+    ModelCompilationOptions_SetGraphOptimizationLevel::Ptr{Cvoid}
+    ModelCompilationOptions_SetOutputModelWriteFunc::Ptr{Cvoid}
+    ModelCompilationOptions_SetOutputModelGetInitializerLocationFunc::Ptr{Cvoid}
+end
+
+struct OrtEpApi
+    CreateEpDevice::Ptr{Cvoid}
+    ReleaseEpDevice::Ptr{Cvoid}
+    EpGraphSupportInfo_AddNodesToFuse::Ptr{Cvoid}
+    EpGraphSupportInfo_AddSingleNode::Ptr{Cvoid}
+    NodeComputeContext_NodeName::Ptr{Cvoid}
+    EpDevice_AddAllocatorInfo::Ptr{Cvoid}
+    MemoryInfo_GetMemoryDevice::Ptr{Cvoid}
+    Value_GetMemoryDevice::Ptr{Cvoid}
+    MemoryDevice_AreEqual::Ptr{Cvoid}
+    MemoryDevice_GetDeviceType::Ptr{Cvoid}
+    MemoryDevice_GetMemoryType::Ptr{Cvoid}
+    MemoryDevice_GetVendorId::Ptr{Cvoid}
+    MemoryDevice_GetDeviceId::Ptr{Cvoid}
+    SyncStream_GetImpl::Ptr{Cvoid}
+    SyncStream_GetSyncId::Ptr{Cvoid}
+    GetSyncIdForLastWaitOnSyncStream::Ptr{Cvoid}
+end
 
 struct OrtApiBase
     GetApi::Ptr{Cvoid}
@@ -650,10 +898,23 @@ const RegisterCustomOpsFn = Ptr{Cvoid}
 # typedef void ( * RunAsyncCallbackFn ) ( void * user_data , OrtValue * * outputs , size_t num_outputs , OrtStatusPtr status )
 const RunAsyncCallbackFn = Ptr{Cvoid}
 
+@cenum OrtCompiledModelCompatibility::UInt32 begin
+    OrtCompiledModelCompatibility_EP_NOT_APPLICABLE = 0
+    OrtCompiledModelCompatibility_EP_SUPPORTED_OPTIMAL = 1
+    OrtCompiledModelCompatibility_EP_SUPPORTED_PREFER_RECOMPILATION = 2
+    OrtCompiledModelCompatibility_EP_UNSUPPORTED = 3
+end
+
 @cenum OrtCustomOpInputOutputCharacteristic::UInt32 begin
     INPUT_OUTPUT_REQUIRED = 0
     INPUT_OUTPUT_OPTIONAL = 1
     INPUT_OUTPUT_VARIADIC = 2
+end
+
+@cenum OrtCompileApiFlags::UInt32 begin
+    OrtCompileApiFlags_NONE = 0
+    OrtCompileApiFlags_ERROR_IF_NO_NODES_COMPILED = 1
+    OrtCompileApiFlags_ERROR_IF_OUTPUT_FILE_EXISTS = 2
 end
 
 function OrtSessionOptionsAppendExecutionProvider_CUDA(options, device_id)
@@ -676,7 +937,96 @@ function OrtSessionOptionsAppendExecutionProvider_Tensorrt(options, device_id)
     @ccall OnnxRuntime.OrtSessionOptionsAppendExecutionProvider_Tensorrt(options::Ptr{OrtSessionOptions}, device_id::Cint)::OrtStatusPtr
 end
 
-const ORT_API_VERSION = 20
+struct OrtEp
+    ort_version_supported::UInt32
+    GetName::Ptr{Cvoid}
+    GetCapability::Ptr{Cvoid}
+    Compile::Ptr{Cvoid}
+    ReleaseNodeComputeInfos::Ptr{Cvoid}
+    GetPreferredDataLayout::Ptr{Cvoid}
+    ShouldConvertDataLayoutForOp::Ptr{Cvoid}
+    SetDynamicOptions::Ptr{Cvoid}
+    OnRunStart::Ptr{Cvoid}
+    OnRunEnd::Ptr{Cvoid}
+    CreateAllocator::Ptr{Cvoid}
+    CreateSyncStreamForDevice::Ptr{Cvoid}
+    GetCompiledModelCompatibilityInfo::Ptr{Cvoid}
+end
+
+struct OrtEpFactory
+    ort_version_supported::UInt32
+    GetName::Ptr{Cvoid}
+    GetVendor::Ptr{Cvoid}
+    GetSupportedDevices::Ptr{Cvoid}
+    CreateEp::Ptr{Cvoid}
+    ReleaseEp::Ptr{Cvoid}
+    GetVendorId::Ptr{Cvoid}
+    GetVersion::Ptr{Cvoid}
+    ValidateCompiledModelCompatibilityInfo::Ptr{Cvoid}
+    CreateAllocator::Ptr{Cvoid}
+    ReleaseAllocator::Ptr{Cvoid}
+    CreateDataTransfer::Ptr{Cvoid}
+    IsStreamAware::Ptr{Cvoid}
+    CreateSyncStreamForDevice::Ptr{Cvoid}
+end
+
+mutable struct OrtEpGraphSupportInfo end
+
+mutable struct OrtMemoryDevice end
+
+mutable struct OrtNodeComputeContext end
+
+struct OrtDataTransferImpl
+    ort_version_supported::UInt32
+    Release::Ptr{Cvoid}
+    CanCopy::Ptr{Cvoid}
+    CopyTensors::Ptr{Cvoid}
+end
+
+struct OrtSyncNotificationImpl
+    ort_version_supported::UInt32
+    Release::Ptr{Cvoid}
+    Activate::Ptr{Cvoid}
+    WaitOnDevice::Ptr{Cvoid}
+    WaitOnHost::Ptr{Cvoid}
+end
+
+struct OrtSyncStreamImpl
+    ort_version_supported::UInt32
+    Release::Ptr{Cvoid}
+    GetHandle::Ptr{Cvoid}
+    CreateNotification::Ptr{Cvoid}
+    Flush::Ptr{Cvoid}
+    OnSessionRunEnd::Ptr{Cvoid}
+end
+
+struct OrtNodeFusionOptions
+    ort_version_supported::UInt32
+    drop_constant_initializers::Bool
+end
+
+struct OrtNodeComputeInfo
+    ort_version_supported::UInt32
+    CreateState::Ptr{Cvoid}
+    Compute::Ptr{Cvoid}
+    ReleaseState::Ptr{Cvoid}
+end
+
+@cenum OrtEpDataLayout::UInt32 begin
+    OrtEpDataLayout_NCHW = 0
+    OrtEpDataLayout_NHWC = 1
+    OrtEpDataLayout_Default = 0
+end
+
+# typedef OrtStatus * ( * CreateEpApiFactoriesFn ) ( _In_ const char * registered_name , _In_ const OrtApiBase * ort_api_base , _In_ const OrtLogger * default_logger , _Inout_ OrtEpFactory * * factories , _In_ size_t max_factories , _Out_ size_t * num_factories )
+const CreateEpApiFactoriesFn = Ptr{Cvoid}
+
+# typedef OrtStatus * ( * ReleaseEpApiFactoryFn ) ( _In_ OrtEpFactory * factory )
+const ReleaseEpApiFactoryFn = Ptr{Cvoid}
+
+const ORT_API_VERSION = 23
+
+# Skipping MacroDefinition: ORT_ALL_ARGS_NONNULL __attribute__ ( ( nonnull ) )
 
 # Export all
 for name in names(@__MODULE__; all=true)
