@@ -16,7 +16,11 @@ function gen_api_function(io::IO, struct_name::String, function_name::String, re
 
     print(io, "$(function_name)(", join(julia_args, ", "), ") = ")
     print(io, "ccall(Base.getproperty(apis, :$(function_name)), $(jrt), (")
-    print(io, join(jats, ", "), "), ")
+    if length(jats) == 1
+        print(io, jats[1], ",), ")
+    else
+        print(io, join(jats, ", "), "), ")
+    end
     println(io, join(arg_names, ", "), ")")
 end
 
