@@ -18,7 +18,6 @@ function gen_api_function(io::IO, struct_name::String, function_name::String, re
     print(io, "ccall(Base.getproperty(apis, :$(function_name)), $(jrt), (")
     print(io, join(jats, ", "), "), ")
     println(io, join(arg_names, ", "), ")")
-    # println(io)
 end
 
 function rewrite(io::IO, struct_sym::Symbol, fc::CLFieldDecl)
@@ -59,9 +58,12 @@ function (x::StructApiPrinter)(dag::ExprDAG, options::Dict)
     file = options["general"]["output_file_path"]
     open(file, "a") do io
         rewrite(io, dag, :OrtApi)
+        println(io)
     end
     return 
 end
+
+# TODO - Read the api structs to wrap from options file
 
 ctx = create_context(["onnxruntimejl.h"], args, options)
 epilog_idx = findfirst(p -> p isa Clang.Generators.EpiloguePrinter, ctx.passes)

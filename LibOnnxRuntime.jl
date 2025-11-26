@@ -1417,6 +1417,7 @@ CopyTensors(apis::OrtApi, env, src_tensors, dst_tensors, stream, num_tensors) = 
 Graph_GetModelMetadata(apis::OrtApi, graph, out) = ccall(Base.getproperty(apis, :Graph_GetModelMetadata), OrtStatusPtr, (Ptr{OrtGraph}, Ptr{Ptr{OrtModelMetadata}}), graph, out)
 GetModelCompatibilityForEpDevices(apis::OrtApi, ep_devices, num_ep_devices, compatibility_info, out_status) = ccall(Base.getproperty(apis, :GetModelCompatibilityForEpDevices), OrtStatusPtr, (Ptr{Ptr{OrtEpDevice}}, size_t, Ptr{Cchar}, Ptr{OrtCompiledModelCompatibility}), ep_devices, num_ep_devices, compatibility_info, out_status)
 CreateExternalInitializerInfo(apis::OrtApi, filepath, file_offset, byte_size, out) = ccall(Base.getproperty(apis, :CreateExternalInitializerInfo), OrtStatusPtr, (Ptr{wchar_t}, int64_t, size_t, Ptr{Ptr{OrtExternalInitializerInfo}}), filepath, file_offset, byte_size, out)
+
 # Export all
 for name in names(@__MODULE__; all=true)
     if name in [:eval, :include, Symbol("#eval"), Symbol("#include")]; continue end
