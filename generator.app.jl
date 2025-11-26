@@ -50,33 +50,21 @@ args = get_default_args()
 #     # end
 # end
 
-function gen_api_function(io::IO, struct_name::String, function_name::String, return_type::AbstractJuliaType, arg_types::Vector{AbstractJuliaType}, arg_names::Vector{String})
+function gen_api_function(io::IO, struct_name::String, function_name::String, return_type::AbstractJuliaType, arg_types::Vector{<:AbstractJuliaType}, arg_names::Vector{String})
 
     # Convert to Julia type strings
     jrt = Generators.translate(return_type) 
     jats = [Generators.translate(t) for t in arg_types]
-    # julia_args = ["$(arg_name)::$(arg_type)" for (arg_name, arg_type) in zip(arg_names, arg_types)]
-    # prepend!(julia_args, ["pstrct::Ptr{$(struct_name)}"])
     julia_args = ["pstrct::Ptr{$(struct_name)}", arg_names...]
 
-    println(io, "function $(function_name)(", join(julia_args, ", "), ")")
-    print(io, "    ccall(Base.getproperty(pstrct, :$(function_name)), $(jrt), (")
+    print(io, "$(function_name)(", join(julia_args, ", "), ") = ")
+    print(io, "ccall(Base.getproperty(pstrct, :$(function_name)), $(jrt), (")
     print(io, join(jats, ", "), "), ")
     println(io, join(arg_names, ", "), ")")
-    println(io, "end")
     println(io)
 end
 
-function rewrite(dag::ExprDAG)
-    struct_sym = :OrtApi # Test
-    n = findfirst(n->n.id == struct_sym, ctx.dag.nodes)
-    node = ctx.dag.nodes[n]
-    c = node.cursor
-    t = Clang.getCursorType(c)
-    fldc = fields(t)
-    
-    fc = fldc[1]
-
+function rewrite(io::IO, struct_sym::Symbol, fc::CLFieldDecl)
     ft = Clang.getCursorType(fc)
     function_name = spelling(fc)
     pt = Clang.getPointeeType(ft)
@@ -88,16 +76,28 @@ function rewrite(dag::ExprDAG)
 
     na = clang_getNumArgTypes(pt)
     ats = [clang_getArgType(pt, i) for i in 0:na-1]
-    arg_type = CLType.(ats) .|> tojulia
+    arg_types = CLType.(ats) .|> tojulia
     ancs = filter(c -> kind(c) == CXCursor_ParmDecl, children(fc))
     arg_names = spelling.(ancs)
     
-    # TODO - generate the function wrapper here
     @info "Function: $function_name"
     @info "  Return type: $return_type" 
-    @info "  Arg types: $arg_type"
     @info "  Arg names: $arg_names"
-    gen_api_function(stdout, String(struct_sym), function_name, return_type, arg_type, arg_names)
+    @info "  Arg types: $arg_types"
+
+    gen_api_function(io, String(struct_sym), function_name, return_type, arg_types, arg_names)
+end
+
+function rewrite(dag::ExprDAG)
+    struct_sym = :OrtApi # Test
+    n = findfirst(n->n.id == struct_sym, ctx.dag.nodes)
+    node = ctx.dag.nodes[n]
+    c = node.cursor
+    t = Clang.getCursorType(c)
+    fldc = fields(t)
+    for fc in fldc
+        rewrite(stdout, struct_sym, fc)
+    end
 end
 
 ctx = create_context(["onnxruntimejl.h"], args, options)
