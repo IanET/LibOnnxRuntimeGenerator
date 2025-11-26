@@ -18,7 +18,6 @@ elseif Sys.islinux()
     end
 end
 
-
 mutable struct OrtStatus end
 
 const OrtStatusPtr = Ptr{OrtStatus}
