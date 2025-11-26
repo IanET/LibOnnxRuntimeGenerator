@@ -7,16 +7,18 @@ cd(@__DIR__)
 options = load_options(joinpath(@__DIR__, "generator.toml"))
 args = get_default_args()
 
+mutable struct StructApiPrinter <: Clang.Generators.AbstractPrinter end
+
 function gen_api_function(io::IO, struct_name::String, function_name::String, return_type::AbstractJuliaType, arg_types::Vector, arg_names::Vector)
     jrt = Generators.translate(return_type) 
     jats = [Generators.translate(t) for t in arg_types]
-    julia_args = ["pstrct::Ptr{$(struct_name)}", arg_names...]
+    julia_args = ["apis::$(struct_name)", arg_names...]
 
     print(io, "$(function_name)(", join(julia_args, ", "), ") = ")
-    print(io, "ccall(Base.getproperty(pstrct, :$(function_name)), $(jrt), (")
+    print(io, "ccall(Base.getproperty(apis, :$(function_name)), $(jrt), (")
     print(io, join(jats, ", "), "), ")
     println(io, join(arg_names, ", "), ")")
-    println(io)
+    # println(io)
 end
 
 function rewrite(io::IO, struct_sym::Symbol, fc::CLFieldDecl)
@@ -42,19 +44,27 @@ function rewrite(io::IO, struct_sym::Symbol, fc::CLFieldDecl)
     gen_api_function(io, String(struct_sym), function_name, return_type, arg_types, arg_names)
 end
 
-function rewrite(dag::ExprDAG)
-    struct_sym = :OrtApi # Test
+function rewrite(io, dag, struct_sym)
     n = findfirst(n->n.id == struct_sym, dag.nodes)
     node = dag.nodes[n]
     c = node.cursor
     t = Clang.getCursorType(c)
     fldc = fields(t)
     for fc in fldc
-        rewrite(stdout, struct_sym, fc)
+        rewrite(io, struct_sym, fc)
     end
 end
 
+function (x::StructApiPrinter)(dag::ExprDAG, options::Dict)
+    file = options["general"]["output_file_path"]
+    open(file, "a") do io
+        rewrite(io, dag, :OrtApi)
+    end
+    return 
+end
+
 ctx = create_context(["onnxruntimejl.h"], args, options)
-build!(ctx, BUILDSTAGE_NO_PRINTING)
-rewrite(ctx.dag)
-build!(ctx, BUILDSTAGE_PRINTING_ONLY)
+epilog_idx = findfirst(p -> p isa Clang.Generators.EpiloguePrinter, ctx.passes)
+insert!(ctx.passes, epilog_idx, StructApiPrinter())
+
+build!(ctx)
