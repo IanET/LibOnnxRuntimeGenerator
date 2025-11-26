@@ -50,7 +50,7 @@ args = get_default_args()
 #     # end
 # end
 
-function gen_api_function(io::IO, struct_name::String, function_name::String, return_type::AbstractJuliaType, arg_types::Vector{<:AbstractJuliaType}, arg_names::Vector{String})
+function gen_api_function(io::IO, struct_name::String, function_name::String, return_type::AbstractJuliaType, arg_types::Vector, arg_names::Vector)
 
     # Convert to Julia type strings
     jrt = Generators.translate(return_type) 
@@ -68,7 +68,7 @@ function rewrite(io::IO, struct_sym::Symbol, fc::CLFieldDecl)
     ft = Clang.getCursorType(fc)
     function_name = spelling(fc)
     pt = Clang.getPointeeType(ft)
-    @assert kind(pt) == CXType_FunctionProto
+    @assert kind(pt) == CXType_FunctionProto || kind(pt) == CXType_FunctionNoProto "Expected function pointer type, got $(kind(pt)) for $function_name"
 
     rt = clang_getResultType(pt)
     return_type = CLType(rt) |> tojulia
@@ -80,10 +80,10 @@ function rewrite(io::IO, struct_sym::Symbol, fc::CLFieldDecl)
     ancs = filter(c -> kind(c) == CXCursor_ParmDecl, children(fc))
     arg_names = spelling.(ancs)
     
-    @info "Function: $function_name"
-    @info "  Return type: $return_type" 
-    @info "  Arg names: $arg_names"
-    @info "  Arg types: $arg_types"
+    # @info "Function: $function_name"
+    # @info "  Return type: $return_type" 
+    # @info "  Arg names: $arg_names"
+    # @info "  Arg types: $arg_types"
 
     gen_api_function(io, String(struct_sym), function_name, return_type, arg_types, arg_names)
 end
