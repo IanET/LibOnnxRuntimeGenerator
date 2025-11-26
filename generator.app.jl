@@ -50,29 +50,54 @@ args = get_default_args()
 #     # end
 # end
 
+function gen_api_function(io::IO, struct_name::String, function_name::String, return_type::AbstractJuliaType, arg_types::Vector{AbstractJuliaType}, arg_names::Vector{String})
+
+    # Convert to Julia type strings
+    jrt = Generators.translate(return_type) 
+    jats = [Generators.translate(t) for t in arg_types]
+    # julia_args = ["$(arg_name)::$(arg_type)" for (arg_name, arg_type) in zip(arg_names, arg_types)]
+    # prepend!(julia_args, ["pstrct::Ptr{$(struct_name)}"])
+    julia_args = ["pstrct::Ptr{$(struct_name)}", arg_names...]
+
+    println(io, "function $(function_name)(", join(julia_args, ", "), ")")
+    print(io, "    ccall(Base.getproperty(pstrct, :$(function_name)), $(jrt), (")
+    print(io, join(jats, ", "), "), ")
+    println(io, join(arg_names, ", "), ")")
+    println(io, "end")
+    println(io)
+end
+
 function rewrite(dag::ExprDAG)
-    n = findfirst(n->n.id == :OrtApi, ctx.dag.nodes)
+    struct_sym = :OrtApi # Test
+    n = findfirst(n->n.id == struct_sym, ctx.dag.nodes)
     node = ctx.dag.nodes[n]
     c = node.cursor
     t = Clang.getCursorType(c)
     fldc = fields(t)
     
-    field_cursor = fldc[1]
-    ft = Clang.getCursorType(field_cursor)
-    fn = spelling(field)
+    fc = fldc[1]
+
+    ft = Clang.getCursorType(fc)
+    function_name = spelling(fc)
     pt = Clang.getPointeeType(ft)
+    @assert kind(pt) == CXType_FunctionProto
+
     rt = clang_getResultType(pt)
-    jrt = CLType(rt) |> tojulia
-    crt = clang_getCanonicalType(rt)
+    return_type = CLType(rt) |> tojulia
+    # crt = clang_getCanonicalType(return_type)
 
     na = clang_getNumArgTypes(pt)
     ats = [clang_getArgType(pt, i) for i in 0:na-1]
-    jats = CLType.(ats) .|> tojulia
-    arg_name_cursors = filter(c -> kind(c) == CXCursor_ParmDecl, children(field_cursor))
-    arg_names = spelling.(arg_name_cursors)
+    arg_type = CLType.(ats) .|> tojulia
+    ancs = filter(c -> kind(c) == CXCursor_ParmDecl, children(fc))
+    arg_names = spelling.(ancs)
     
-    # todo
-    
+    # TODO - generate the function wrapper here
+    @info "Function: $function_name"
+    @info "  Return type: $return_type" 
+    @info "  Arg types: $arg_type"
+    @info "  Arg names: $arg_names"
+    gen_api_function(stdout, String(struct_sym), function_name, return_type, arg_type, arg_names)
 end
 
 ctx = create_context(["onnxruntimejl.h"], args, options)
