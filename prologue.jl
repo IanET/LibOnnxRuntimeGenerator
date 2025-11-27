@@ -14,4 +14,14 @@ elseif Sys.islinux()
     end
 end
 
+const wchar_t = Cwchar_t
 const size_t = Csize_t
+const int64_t = Clonglong
+const uint64_t = Culonglong
+const int32_t = Cint
+const uint32_t = Cuint
+const int16_t = Cshort
+const uint16_t = Cushort
+const int8_t = Cchar
+const uint8_t = Cuchar
+const byte = UInt8
