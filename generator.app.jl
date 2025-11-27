@@ -9,9 +9,9 @@ args = get_default_args()
 
 mutable struct StructApiPrinter <: Clang.Generators.AbstractPrinter end
 
-function gen_api_function(io::IO, struct_name::String, function_name::String, return_type::AbstractJuliaType, arg_types::Vector, arg_names::Vector)
-    jrt = Generators.translate(return_type) 
-    jats = [Generators.translate(t) for t in arg_types]
+function gen_api_function(io::IO, options::Dict, struct_name::String, function_name::String, return_type::AbstractJuliaType, arg_types::Vector, arg_names::Vector)
+    jrt = Generators.translate(return_type, options["codegen"]) 
+    jats = [Generators.translate(t, options["codegen"]) for t in arg_types]
     julia_args = ["apis::$(struct_name)", arg_names...]
 
     print(io, "$(function_name)(", join(julia_args, ", "), ") = ")
@@ -24,7 +24,7 @@ function gen_api_function(io::IO, struct_name::String, function_name::String, re
     println(io, join(arg_names, ", "), ")")
 end
 
-function rewrite(io::IO, struct_sym::Symbol, fc::CLFieldDecl)
+function rewrite(io::IO, options::Dict, struct_sym::Symbol, fc::CLFieldDecl)
     ft = Clang.getCursorType(fc)
     function_name = spelling(fc)
     pt = Clang.getPointeeType(ft)
@@ -44,27 +44,37 @@ function rewrite(io::IO, struct_sym::Symbol, fc::CLFieldDecl)
     # @info "  Arg names: $arg_names"
     # @info "  Arg types: $arg_types"
 
-    gen_api_function(io, String(struct_sym), function_name, return_type, arg_types, arg_names)
+    gen_api_function(io, options, String(struct_sym), function_name, return_type, arg_types, arg_names)
 end
 
-function rewrite(io, dag, struct_sym)
+function rewrite(io, dag, options, struct_sym)
     n = findfirst(n->n.id == struct_sym, dag.nodes)
     node = dag.nodes[n]
     c = node.cursor
     t = Clang.getCursorType(c)
     fldc = fields(t)
     for fc in fldc
-        rewrite(io, struct_sym, fc)
+        rewrite(io, options, struct_sym, fc)
     end
 end
 
 function (x::StructApiPrinter)(dag::ExprDAG, options::Dict)
     file = options["general"]["output_file_path"]
+    codegen_options = get(options, "codegen", Dict())
+    codegen_options["DAG_tags"] = dag.tags
+    codegen_options["DAG_ids"] = dag.ids
+    codegen_options["DAG_ids_extra"] = dag.ids_extra
+
     open(file, "a") do io
-        rewrite(io, dag, :OrtApi)
+        rewrite(io, dag, options, :OrtApi)
         println(io)
     end
-    return 
+
+    delete!(codegen_options, "DAG_tags")
+    delete!(codegen_options, "DAG_ids")
+    delete!(codegen_options, "DAG_ids_extra")
+
+    return dag
 end
 
 # TODO - Read the api structs to wrap from options file
