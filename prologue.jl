@@ -13,3 +13,5 @@ elseif Sys.islinux()
         const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes/linux-arm64/native/libonnxruntime.so")
     end
 end
+
+const size_t = Csize_t

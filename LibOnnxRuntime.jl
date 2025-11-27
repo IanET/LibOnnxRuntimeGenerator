@@ -18,6 +18,8 @@ elseif Sys.islinux()
     end
 end
 
+const size_t = Csize_t
+
 mutable struct OrtStatus end
 
 const OrtStatusPtr = Ptr{OrtStatus}
@@ -315,7 +317,7 @@ end
 struct OrtCUDAProviderOptions
     device_id::Cint
     cudnn_conv_algo_search::OrtCudnnConvAlgoSearch
-    gpu_mem_limit::size_t
+    gpu_mem_limit::Csize_t
     arena_extend_strategy::Cint
     do_copy_in_default_stream::Cint
     has_user_compute_stream::Cint
@@ -329,7 +331,7 @@ end
 struct OrtROCMProviderOptions
     device_id::Cint
     miopen_conv_exhaustive_search::Cint
-    gpu_mem_limit::size_t
+    gpu_mem_limit::Csize_t
     arena_extend_strategy::Cint
     do_copy_in_default_stream::Cint
     has_user_compute_stream::Cint
@@ -347,7 +349,7 @@ struct OrtTensorRTProviderOptions
     user_compute_stream::Ptr{Cvoid}
     trt_max_partition_iterations::Cint
     trt_min_subgraph_size::Cint
-    trt_max_workspace_size::size_t
+    trt_max_workspace_size::Csize_t
     trt_fp16_enable::Cint
     trt_int8_enable::Cint
     trt_int8_calibration_table_name::Ptr{Cchar}
@@ -374,7 +376,7 @@ struct OrtMIGraphXProviderOptions
     migraphx_load_compiled_model::Cint
     migraphx_load_model_path::Ptr{Cchar}
     migraphx_exhaustive_tune::Bool
-    migraphx_mem_limit::size_t
+    migraphx_mem_limit::Csize_t
     migraphx_arena_extend_strategy::Cint
 end
 
@@ -382,7 +384,7 @@ struct OrtOpenVINOProviderOptions
     device_type::Ptr{Cchar}
     enable_npu_fast_compile::Cuchar
     device_id::Ptr{Cchar}
-    num_of_threads::size_t
+    num_of_threads::Csize_t
     cache_dir::Ptr{Cchar}
     context::Ptr{Cvoid}
     enable_opencl_throttling::Cuchar
@@ -1024,8 +1026,6 @@ const CreateEpApiFactoriesFn = Ptr{Cvoid}
 const ReleaseEpApiFactoryFn = Ptr{Cvoid}
 
 const wchar_t = Cwchar_t
-
-const size_t = Csize_t
 
 const ORT_API_VERSION = 23
 
