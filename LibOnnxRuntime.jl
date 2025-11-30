@@ -1431,6 +1431,13 @@ Graph_GetModelMetadata(apis::OrtApi, graph, out) = ccall(Base.getproperty(apis, 
 GetModelCompatibilityForEpDevices(apis::OrtApi, ep_devices, num_ep_devices, compatibility_info, out_status) = ccall(Base.getproperty(apis, :GetModelCompatibilityForEpDevices), OrtStatusPtr, (Ptr{Ptr{OrtEpDevice}}, Csize_t, Ptr{Cchar}, Ptr{OrtCompiledModelCompatibility}), ep_devices, num_ep_devices, compatibility_info, out_status)
 CreateExternalInitializerInfo(apis::OrtApi, filepath, file_offset, byte_size, out) = ccall(Base.getproperty(apis, :CreateExternalInitializerInfo), OrtStatusPtr, (Ptr{Cwchar_t}, Int64, Csize_t, Ptr{Ptr{OrtExternalInitializerInfo}}), filepath, file_offset, byte_size, out)
 
+Alloc(apis::OrtAllocator, this_, size) = ccall(Base.getproperty(apis, :Alloc), Ptr{Cvoid}, (Ptr{OrtAllocator}, Csize_t), this_, size)
+Free(apis::OrtAllocator, this_, p) = ccall(Base.getproperty(apis, :Free), Cvoid, (Ptr{OrtAllocator}, Ptr{Cvoid}), this_, p)
+Info(apis::OrtAllocator, this_) = ccall(Base.getproperty(apis, :Info), Ptr{OrtMemoryInfo}, (Ptr{OrtAllocator},), this_)
+Reserve(apis::OrtAllocator, this_, size) = ccall(Base.getproperty(apis, :Reserve), Ptr{Cvoid}, (Ptr{OrtAllocator}, Csize_t), this_, size)
+GetStats(apis::OrtAllocator, this_, out) = ccall(Base.getproperty(apis, :GetStats), OrtStatusPtr, (Ptr{OrtAllocator}, Ptr{Ptr{OrtKeyValuePairs}}), this_, out)
+AllocOnStream(apis::OrtAllocator, this_, size, stream) = ccall(Base.getproperty(apis, :AllocOnStream), Ptr{Cvoid}, (Ptr{OrtAllocator}, Csize_t, Ptr{OrtSyncStream}), this_, size, stream)
+
 # Export all
 for name in names(@__MODULE__; all=true)
     if name in [:eval, :include, Symbol("#eval"), Symbol("#include")]; continue end

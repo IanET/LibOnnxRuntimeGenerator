@@ -9,4 +9,4 @@ print_using_CEnum = true
 
 [codegen]
 use_ccall_macro = true
-wrap_api_structs = ["OrtApi"]
+wrap_api_structs = ["OrtApi", "OrtAllocator"]

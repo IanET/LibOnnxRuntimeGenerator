@@ -28,7 +28,13 @@ function rewrite(io::IO, options::Dict, struct_sym::Symbol, fc::CLFieldDecl)
     ft = Clang.getCursorType(fc)
     function_name = spelling(fc)
     pt = Clang.getPointeeType(ft)
-    @assert kind(pt) == CXType_FunctionProto || kind(pt) == CXType_FunctionNoProto "Expected function pointer type, got $(kind(pt)) for $function_name"
+
+    if kind(pt) != CXType_FunctionProto && kind(pt) != CXType_FunctionNoProto
+        @info "Skipping field '$function_name', not function pointer type"
+        return
+    end
+
+    # @assert kind(pt) == CXType_FunctionProto || kind(pt) == CXType_FunctionNoProto "Expected function pointer type, got $(kind(pt)) for $function_name"
 
     rt = clang_getResultType(pt)
     return_type = CLType(rt) |> tojulia
