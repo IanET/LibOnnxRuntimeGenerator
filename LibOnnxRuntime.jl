@@ -1040,6 +1040,9 @@ const ORT_API_VERSION = 23
 
 # Skipping MacroDefinition: ORT_ALL_ARGS_NONNULL __attribute__ ( ( nonnull ) )
 
+GetApi(apis::OrtApiBase, version) = ccall(Base.getproperty(apis, :GetApi), Ptr{OrtApi}, (UInt32,), version)
+GetVersionString(apis::OrtApiBase) = ccall(Base.getproperty(apis, :GetVersionString), Ptr{Cchar}, (), )
+
 CreateStatus(apis::OrtApi, code, msg) = ccall(Base.getproperty(apis, :CreateStatus), Ptr{OrtStatus}, (OrtErrorCode, Ptr{Cchar}), code, msg)
 GetErrorCode(apis::OrtApi, status) = ccall(Base.getproperty(apis, :GetErrorCode), OrtErrorCode, (Ptr{OrtStatus},), status)
 GetErrorMessage(apis::OrtApi, status) = ccall(Base.getproperty(apis, :GetErrorMessage), Ptr{Cchar}, (Ptr{OrtStatus},), status)
@@ -1430,13 +1433,6 @@ CopyTensors(apis::OrtApi, env, src_tensors, dst_tensors, stream, num_tensors) = 
 Graph_GetModelMetadata(apis::OrtApi, graph, out) = ccall(Base.getproperty(apis, :Graph_GetModelMetadata), OrtStatusPtr, (Ptr{OrtGraph}, Ptr{Ptr{OrtModelMetadata}}), graph, out)
 GetModelCompatibilityForEpDevices(apis::OrtApi, ep_devices, num_ep_devices, compatibility_info, out_status) = ccall(Base.getproperty(apis, :GetModelCompatibilityForEpDevices), OrtStatusPtr, (Ptr{Ptr{OrtEpDevice}}, Csize_t, Ptr{Cchar}, Ptr{OrtCompiledModelCompatibility}), ep_devices, num_ep_devices, compatibility_info, out_status)
 CreateExternalInitializerInfo(apis::OrtApi, filepath, file_offset, byte_size, out) = ccall(Base.getproperty(apis, :CreateExternalInitializerInfo), OrtStatusPtr, (Ptr{Cwchar_t}, Int64, Csize_t, Ptr{Ptr{OrtExternalInitializerInfo}}), filepath, file_offset, byte_size, out)
-
-Alloc(apis::OrtAllocator, this_, size) = ccall(Base.getproperty(apis, :Alloc), Ptr{Cvoid}, (Ptr{OrtAllocator}, Csize_t), this_, size)
-Free(apis::OrtAllocator, this_, p) = ccall(Base.getproperty(apis, :Free), Cvoid, (Ptr{OrtAllocator}, Ptr{Cvoid}), this_, p)
-Info(apis::OrtAllocator, this_) = ccall(Base.getproperty(apis, :Info), Ptr{OrtMemoryInfo}, (Ptr{OrtAllocator},), this_)
-Reserve(apis::OrtAllocator, this_, size) = ccall(Base.getproperty(apis, :Reserve), Ptr{Cvoid}, (Ptr{OrtAllocator}, Csize_t), this_, size)
-GetStats(apis::OrtAllocator, this_, out) = ccall(Base.getproperty(apis, :GetStats), OrtStatusPtr, (Ptr{OrtAllocator}, Ptr{Ptr{OrtKeyValuePairs}}), this_, out)
-AllocOnStream(apis::OrtAllocator, this_, size, stream) = ccall(Base.getproperty(apis, :AllocOnStream), Ptr{Cvoid}, (Ptr{OrtAllocator}, Csize_t, Ptr{OrtSyncStream}), this_, size, stream)
 
 # Export all
 for name in names(@__MODULE__; all=true)
