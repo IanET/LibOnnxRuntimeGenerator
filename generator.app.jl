@@ -47,8 +47,13 @@ function rewrite(io::IO, options::Dict, struct_sym::Symbol, fc::CLFieldDecl)
     gen_api_function(io, options, String(struct_sym), function_name, return_type, arg_types, arg_names)
 end
 
-function rewrite(io, dag, options, struct_sym)
+function rewrite(io, dag, options, struct_name)
+    struct_sym = Symbol(struct_name)
     n = findfirst(n->n.id == struct_sym, dag.nodes)
+    if n === nothing
+        @warn "Struct $struct_sym not found in DAG"
+        return
+    end
     node = dag.nodes[n]
     c = node.cursor
     t = Clang.getCursorType(c)
@@ -61,13 +66,19 @@ end
 function (x::StructApiPrinter)(dag::ExprDAG, options::Dict)
     file = options["general"]["output_file_path"]
     codegen_options = get(options, "codegen", Dict())
+    wrap_api_structs = get(codegen_options, "wrap_api_structs", String[])
     codegen_options["DAG_tags"] = dag.tags
     codegen_options["DAG_ids"] = dag.ids
     codegen_options["DAG_ids_extra"] = dag.ids_extra
 
-    open(file, "a") do io
-        rewrite(io, dag, options, :OrtApi)
-        println(io)
+    if !isempty(wrap_api_structs)
+        open(file, "a") do io
+            for struct_name in wrap_api_structs
+                @info "Wrapping API struct: $struct_name"
+                rewrite(io, dag, options, struct_name)
+                println(io)
+            end
+        end
     end
 
     delete!(codegen_options, "DAG_tags")
