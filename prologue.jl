@@ -1,6 +1,12 @@
 using Pkg.Artifacts
 
 @static if Sys.iswindows()
+    const ORT_CHAR_T = Cwchar_t
+elseif Sys.islinux()
+    const ORT_CHAR_T = Cchar
+end
+
+@static if Sys.iswindows()
     @static if Sys.ARCH == :x86_64
         const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes\\win-x64\\native\\onnxruntime.dll")
     else # Sys.ARCH == :aarch64
@@ -14,7 +20,6 @@ elseif Sys.islinux()
     end
 end
 
-const wchar_t = Cwchar_t
 const size_t = Csize_t
 const int64_t = Clonglong
 const uint64_t = Culonglong

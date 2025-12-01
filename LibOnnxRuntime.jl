@@ -5,6 +5,12 @@ using CEnum: CEnum, @cenum
 using Pkg.Artifacts
 
 @static if Sys.iswindows()
+    const ORT_CHAR_T = Cwchar_t
+elseif Sys.islinux()
+    const ORT_CHAR_T = Cchar
+end
+
+@static if Sys.iswindows()
     @static if Sys.ARCH == :x86_64
         const OnnxRuntime = joinpath(artifact"OnnxRuntime", "runtimes\\win-x64\\native\\onnxruntime.dll")
     else # Sys.ARCH == :aarch64
@@ -18,7 +24,6 @@ elseif Sys.islinux()
     end
 end
 
-const wchar_t = Cwchar_t
 const size_t = Csize_t
 const int64_t = Clonglong
 const uint64_t = Culonglong
@@ -1036,6 +1041,8 @@ const CreateEpApiFactoriesFn = Ptr{Cvoid}
 # typedef OrtStatus * ( * ReleaseEpApiFactoryFn ) ( _In_ OrtEpFactory * factory )
 const ReleaseEpApiFactoryFn = Ptr{Cvoid}
 
+const wchar_t = ORT_CHAR_T
+
 const ORT_API_VERSION = 23
 
 # Skipping MacroDefinition: ORT_ALL_ARGS_NONNULL __attribute__ ( ( nonnull ) )
@@ -1050,14 +1057,14 @@ CreateEnv(apis::OrtApi, log_severity_level, logid, out) = ccall(Base.getproperty
 CreateEnvWithCustomLogger(apis::OrtApi, logging_function, logger_param, log_severity_level, logid, out) = ccall(Base.getproperty(apis, :CreateEnvWithCustomLogger), OrtStatusPtr, (OrtLoggingFunction, Ptr{Cvoid}, OrtLoggingLevel, Ptr{Cchar}, Ptr{Ptr{OrtEnv}}), logging_function, logger_param, log_severity_level, logid, out)
 EnableTelemetryEvents(apis::OrtApi, env) = ccall(Base.getproperty(apis, :EnableTelemetryEvents), OrtStatusPtr, (Ptr{OrtEnv},), env)
 DisableTelemetryEvents(apis::OrtApi, env) = ccall(Base.getproperty(apis, :DisableTelemetryEvents), OrtStatusPtr, (Ptr{OrtEnv},), env)
-CreateSession(apis::OrtApi, env, model_path, options, out) = ccall(Base.getproperty(apis, :CreateSession), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{Cwchar_t}, Ptr{OrtSessionOptions}, Ptr{Ptr{OrtSession}}), env, model_path, options, out)
+CreateSession(apis::OrtApi, env, model_path, options, out) = ccall(Base.getproperty(apis, :CreateSession), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{ORT_CHAR_T}, Ptr{OrtSessionOptions}, Ptr{Ptr{OrtSession}}), env, model_path, options, out)
 CreateSessionFromArray(apis::OrtApi, env, model_data, model_data_length, options, out) = ccall(Base.getproperty(apis, :CreateSessionFromArray), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{Cvoid}, Csize_t, Ptr{OrtSessionOptions}, Ptr{Ptr{OrtSession}}), env, model_data, model_data_length, options, out)
 Run(apis::OrtApi, session, run_options, input_names, inputs, input_len, output_names, output_names_len, outputs) = ccall(Base.getproperty(apis, :Run), OrtStatusPtr, (Ptr{OrtSession}, Ptr{OrtRunOptions}, Ptr{Ptr{Cchar}}, Ptr{Ptr{OrtValue}}, Csize_t, Ptr{Ptr{Cchar}}, Csize_t, Ptr{Ptr{OrtValue}}), session, run_options, input_names, inputs, input_len, output_names, output_names_len, outputs)
 CreateSessionOptions(apis::OrtApi, options) = ccall(Base.getproperty(apis, :CreateSessionOptions), OrtStatusPtr, (Ptr{Ptr{OrtSessionOptions}},), options)
-SetOptimizedModelFilePath(apis::OrtApi, options, optimized_model_filepath) = ccall(Base.getproperty(apis, :SetOptimizedModelFilePath), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{Cwchar_t}), options, optimized_model_filepath)
+SetOptimizedModelFilePath(apis::OrtApi, options, optimized_model_filepath) = ccall(Base.getproperty(apis, :SetOptimizedModelFilePath), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{ORT_CHAR_T}), options, optimized_model_filepath)
 CloneSessionOptions(apis::OrtApi, in_options, out_options) = ccall(Base.getproperty(apis, :CloneSessionOptions), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{Ptr{OrtSessionOptions}}), in_options, out_options)
 SetSessionExecutionMode(apis::OrtApi, options, execution_mode) = ccall(Base.getproperty(apis, :SetSessionExecutionMode), OrtStatusPtr, (Ptr{OrtSessionOptions}, ExecutionMode), options, execution_mode)
-EnableProfiling(apis::OrtApi, options, profile_file_prefix) = ccall(Base.getproperty(apis, :EnableProfiling), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{Cwchar_t}), options, profile_file_prefix)
+EnableProfiling(apis::OrtApi, options, profile_file_prefix) = ccall(Base.getproperty(apis, :EnableProfiling), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{ORT_CHAR_T}), options, profile_file_prefix)
 DisableProfiling(apis::OrtApi, options) = ccall(Base.getproperty(apis, :DisableProfiling), OrtStatusPtr, (Ptr{OrtSessionOptions},), options)
 EnableMemPattern(apis::OrtApi, options) = ccall(Base.getproperty(apis, :EnableMemPattern), OrtStatusPtr, (Ptr{OrtSessionOptions},), options)
 DisableMemPattern(apis::OrtApi, options) = ccall(Base.getproperty(apis, :DisableMemPattern), OrtStatusPtr, (Ptr{OrtSessionOptions},), options)
@@ -1211,7 +1218,7 @@ CreateArenaCfgV2(apis::OrtApi, arena_config_keys, arena_config_values, num_keys,
 AddRunConfigEntry(apis::OrtApi, options, config_key, config_value) = ccall(Base.getproperty(apis, :AddRunConfigEntry), OrtStatusPtr, (Ptr{OrtRunOptions}, Ptr{Cchar}, Ptr{Cchar}), options, config_key, config_value)
 CreatePrepackedWeightsContainer(apis::OrtApi, out) = ccall(Base.getproperty(apis, :CreatePrepackedWeightsContainer), OrtStatusPtr, (Ptr{Ptr{OrtPrepackedWeightsContainer}},), out)
 ReleasePrepackedWeightsContainer(apis::OrtApi, input) = ccall(Base.getproperty(apis, :ReleasePrepackedWeightsContainer), Cvoid, (Ptr{OrtPrepackedWeightsContainer},), input)
-CreateSessionWithPrepackedWeightsContainer(apis::OrtApi, env, model_path, options, prepacked_weights_container, out) = ccall(Base.getproperty(apis, :CreateSessionWithPrepackedWeightsContainer), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{Cwchar_t}, Ptr{OrtSessionOptions}, Ptr{OrtPrepackedWeightsContainer}, Ptr{Ptr{OrtSession}}), env, model_path, options, prepacked_weights_container, out)
+CreateSessionWithPrepackedWeightsContainer(apis::OrtApi, env, model_path, options, prepacked_weights_container, out) = ccall(Base.getproperty(apis, :CreateSessionWithPrepackedWeightsContainer), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{ORT_CHAR_T}, Ptr{OrtSessionOptions}, Ptr{OrtPrepackedWeightsContainer}, Ptr{Ptr{OrtSession}}), env, model_path, options, prepacked_weights_container, out)
 CreateSessionFromArrayWithPrepackedWeightsContainer(apis::OrtApi, env, model_data, model_data_length, options, prepacked_weights_container, out) = ccall(Base.getproperty(apis, :CreateSessionFromArrayWithPrepackedWeightsContainer), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{Cvoid}, Csize_t, Ptr{OrtSessionOptions}, Ptr{OrtPrepackedWeightsContainer}, Ptr{Ptr{OrtSession}}), env, model_data, model_data_length, options, prepacked_weights_container, out)
 SessionOptionsAppendExecutionProvider_TensorRT_V2(apis::OrtApi, options, tensorrt_options) = ccall(Base.getproperty(apis, :SessionOptionsAppendExecutionProvider_TensorRT_V2), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{OrtTensorRTProviderOptionsV2}), options, tensorrt_options)
 CreateTensorRTProviderOptions(apis::OrtApi, out) = ccall(Base.getproperty(apis, :CreateTensorRTProviderOptions), OrtStatusPtr, (Ptr{Ptr{OrtTensorRTProviderOptionsV2}},), out)
@@ -1271,7 +1278,7 @@ ReleaseCANNProviderOptions(apis::OrtApi, input) = ccall(Base.getproperty(apis, :
 MemoryInfoGetDeviceType(apis::OrtApi, ptr, out) = ccall(Base.getproperty(apis, :MemoryInfoGetDeviceType), Cvoid, (Ptr{OrtMemoryInfo}, Ptr{OrtMemoryInfoDeviceType}), ptr, out)
 UpdateEnvWithCustomLogLevel(apis::OrtApi, ort_env, log_severity_level) = ccall(Base.getproperty(apis, :UpdateEnvWithCustomLogLevel), OrtStatusPtr, (Ptr{OrtEnv}, OrtLoggingLevel), ort_env, log_severity_level)
 SetGlobalIntraOpThreadAffinity(apis::OrtApi, tp_options, affinity_string) = ccall(Base.getproperty(apis, :SetGlobalIntraOpThreadAffinity), OrtStatusPtr, (Ptr{OrtThreadingOptions}, Ptr{Cchar}), tp_options, affinity_string)
-RegisterCustomOpsLibrary_V2(apis::OrtApi, options, library_name) = ccall(Base.getproperty(apis, :RegisterCustomOpsLibrary_V2), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{Cwchar_t}), options, library_name)
+RegisterCustomOpsLibrary_V2(apis::OrtApi, options, library_name) = ccall(Base.getproperty(apis, :RegisterCustomOpsLibrary_V2), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{ORT_CHAR_T}), options, library_name)
 RegisterCustomOpsUsingFunction(apis::OrtApi, options, registration_func_name) = ccall(Base.getproperty(apis, :RegisterCustomOpsUsingFunction), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{Cchar}), options, registration_func_name)
 KernelInfo_GetInputCount(apis::OrtApi, info, out) = ccall(Base.getproperty(apis, :KernelInfo_GetInputCount), OrtStatusPtr, (Ptr{OrtKernelInfo}, Ptr{Csize_t}), info, out)
 KernelInfo_GetOutputCount(apis::OrtApi, info, out) = ccall(Base.getproperty(apis, :KernelInfo_GetOutputCount), OrtStatusPtr, (Ptr{OrtKernelInfo}, Ptr{Csize_t}), info, out)
@@ -1290,7 +1297,7 @@ ReleaseDnnlProviderOptions(apis::OrtApi, input) = ccall(Base.getproperty(apis, :
 KernelInfo_GetNodeName(apis::OrtApi, info, out, size) = ccall(Base.getproperty(apis, :KernelInfo_GetNodeName), OrtStatusPtr, (Ptr{OrtKernelInfo}, Ptr{Cchar}, Ptr{Csize_t}), info, out, size)
 KernelInfo_GetLogger(apis::OrtApi, info, logger) = ccall(Base.getproperty(apis, :KernelInfo_GetLogger), OrtStatusPtr, (Ptr{OrtKernelInfo}, Ptr{Ptr{OrtLogger}}), info, logger)
 KernelContext_GetLogger(apis::OrtApi, context, logger) = ccall(Base.getproperty(apis, :KernelContext_GetLogger), OrtStatusPtr, (Ptr{OrtKernelContext}, Ptr{Ptr{OrtLogger}}), context, logger)
-Logger_LogMessage(apis::OrtApi, logger, log_severity_level, message, file_path, line_number, func_name) = ccall(Base.getproperty(apis, :Logger_LogMessage), OrtStatusPtr, (Ptr{OrtLogger}, OrtLoggingLevel, Ptr{Cchar}, Ptr{Cwchar_t}, Cint, Ptr{Cchar}), logger, log_severity_level, message, file_path, line_number, func_name)
+Logger_LogMessage(apis::OrtApi, logger, log_severity_level, message, file_path, line_number, func_name) = ccall(Base.getproperty(apis, :Logger_LogMessage), OrtStatusPtr, (Ptr{OrtLogger}, OrtLoggingLevel, Ptr{Cchar}, Ptr{ORT_CHAR_T}, Cint, Ptr{Cchar}), logger, log_severity_level, message, file_path, line_number, func_name)
 Logger_GetLoggingSeverityLevel(apis::OrtApi, logger, out) = ccall(Base.getproperty(apis, :Logger_GetLoggingSeverityLevel), OrtStatusPtr, (Ptr{OrtLogger}, Ptr{OrtLoggingLevel}), logger, out)
 KernelInfoGetConstantInput_tensor(apis::OrtApi, info, index, is_constant, out) = ccall(Base.getproperty(apis, :KernelInfoGetConstantInput_tensor), OrtStatusPtr, (Ptr{OrtKernelInfo}, Csize_t, Ptr{Cint}, Ptr{Ptr{OrtValue}}), info, index, is_constant, out)
 CastTypeInfoToOptionalTypeInfo(apis::OrtApi, type_info, out) = ccall(Base.getproperty(apis, :CastTypeInfoToOptionalTypeInfo), OrtStatusPtr, (Ptr{OrtTypeInfo}, Ptr{Ptr{OrtOptionalTypeInfo}}), type_info, out)
@@ -1322,8 +1329,8 @@ SessionOptionsAppendExecutionProvider_OpenVINO_V2(apis::OrtApi, options, provide
 SessionOptionsAppendExecutionProvider_VitisAI(apis::OrtApi, options, provider_options_keys, provider_options_values, num_keys) = ccall(Base.getproperty(apis, :SessionOptionsAppendExecutionProvider_VitisAI), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{Ptr{Cchar}}, Ptr{Ptr{Cchar}}, Csize_t), options, provider_options_keys, provider_options_values, num_keys)
 KernelContext_GetScratchBuffer(apis::OrtApi, context, mem_info, count_or_bytes, out) = ccall(Base.getproperty(apis, :KernelContext_GetScratchBuffer), OrtStatusPtr, (Ptr{OrtKernelContext}, Ptr{OrtMemoryInfo}, Csize_t, Ptr{Ptr{Cvoid}}), context, mem_info, count_or_bytes, out)
 KernelInfoGetAllocator(apis::OrtApi, info, mem_type, out) = ccall(Base.getproperty(apis, :KernelInfoGetAllocator), OrtStatusPtr, (Ptr{OrtKernelInfo}, OrtMemType, Ptr{Ptr{OrtAllocator}}), info, mem_type, out)
-AddExternalInitializersFromFilesInMemory(apis::OrtApi, options, external_initializer_file_names, external_initializer_file_buffer_array, external_initializer_file_lengths, num_external_initializer_files) = ccall(Base.getproperty(apis, :AddExternalInitializersFromFilesInMemory), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{Ptr{Cwchar_t}}, Ptr{Ptr{Cchar}}, Ptr{Csize_t}, Csize_t), options, external_initializer_file_names, external_initializer_file_buffer_array, external_initializer_file_lengths, num_external_initializer_files)
-CreateLoraAdapter(apis::OrtApi, adapter_file_path, allocator, out) = ccall(Base.getproperty(apis, :CreateLoraAdapter), OrtStatusPtr, (Ptr{Cwchar_t}, Ptr{OrtAllocator}, Ptr{Ptr{OrtLoraAdapter}}), adapter_file_path, allocator, out)
+AddExternalInitializersFromFilesInMemory(apis::OrtApi, options, external_initializer_file_names, external_initializer_file_buffer_array, external_initializer_file_lengths, num_external_initializer_files) = ccall(Base.getproperty(apis, :AddExternalInitializersFromFilesInMemory), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{Ptr{ORT_CHAR_T}}, Ptr{Ptr{Cchar}}, Ptr{Csize_t}, Csize_t), options, external_initializer_file_names, external_initializer_file_buffer_array, external_initializer_file_lengths, num_external_initializer_files)
+CreateLoraAdapter(apis::OrtApi, adapter_file_path, allocator, out) = ccall(Base.getproperty(apis, :CreateLoraAdapter), OrtStatusPtr, (Ptr{ORT_CHAR_T}, Ptr{OrtAllocator}, Ptr{Ptr{OrtLoraAdapter}}), adapter_file_path, allocator, out)
 CreateLoraAdapterFromArray(apis::OrtApi, bytes, num_bytes, allocator, out) = ccall(Base.getproperty(apis, :CreateLoraAdapterFromArray), OrtStatusPtr, (Ptr{Cvoid}, Csize_t, Ptr{OrtAllocator}, Ptr{Ptr{OrtLoraAdapter}}), bytes, num_bytes, allocator, out)
 ReleaseLoraAdapter(apis::OrtApi, input) = ccall(Base.getproperty(apis, :ReleaseLoraAdapter), Cvoid, (Ptr{OrtLoraAdapter},), input)
 RunOptionsAddActiveLoraAdapter(apis::OrtApi, options, adapter) = ccall(Base.getproperty(apis, :RunOptionsAddActiveLoraAdapter), OrtStatusPtr, (Ptr{OrtRunOptions}, Ptr{OrtLoraAdapter}), options, adapter)
@@ -1344,7 +1351,7 @@ GetKeyValue(apis::OrtApi, kvps, key) = ccall(Base.getproperty(apis, :GetKeyValue
 GetKeyValuePairs(apis::OrtApi, kvps, keys, values, num_entries) = ccall(Base.getproperty(apis, :GetKeyValuePairs), Cvoid, (Ptr{OrtKeyValuePairs}, Ptr{Ptr{Ptr{Cchar}}}, Ptr{Ptr{Ptr{Cchar}}}, Ptr{Csize_t}), kvps, keys, values, num_entries)
 RemoveKeyValuePair(apis::OrtApi, kvps, key) = ccall(Base.getproperty(apis, :RemoveKeyValuePair), Cvoid, (Ptr{OrtKeyValuePairs}, Ptr{Cchar}), kvps, key)
 ReleaseKeyValuePairs(apis::OrtApi, input) = ccall(Base.getproperty(apis, :ReleaseKeyValuePairs), Cvoid, (Ptr{OrtKeyValuePairs},), input)
-RegisterExecutionProviderLibrary(apis::OrtApi, env, registration_name, path) = ccall(Base.getproperty(apis, :RegisterExecutionProviderLibrary), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{Cchar}, Ptr{Cwchar_t}), env, registration_name, path)
+RegisterExecutionProviderLibrary(apis::OrtApi, env, registration_name, path) = ccall(Base.getproperty(apis, :RegisterExecutionProviderLibrary), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{Cchar}, Ptr{ORT_CHAR_T}), env, registration_name, path)
 UnregisterExecutionProviderLibrary(apis::OrtApi, env, registration_name) = ccall(Base.getproperty(apis, :UnregisterExecutionProviderLibrary), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{Cchar}), env, registration_name)
 GetEpDevices(apis::OrtApi, env, ep_devices, num_ep_devices) = ccall(Base.getproperty(apis, :GetEpDevices), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{Ptr{Ptr{OrtEpDevice}}}, Ptr{Csize_t}), env, ep_devices, num_ep_devices)
 SessionOptionsAppendExecutionProvider_V2(apis::OrtApi, session_options, env, ep_devices, num_ep_devices, ep_option_keys, ep_option_vals, num_ep_options) = ccall(Base.getproperty(apis, :SessionOptionsAppendExecutionProvider_V2), OrtStatusPtr, (Ptr{OrtSessionOptions}, Ptr{OrtEnv}, Ptr{Ptr{OrtEpDevice}}, Csize_t, Ptr{Ptr{Cchar}}, Ptr{Ptr{Cchar}}, Csize_t), session_options, env, ep_devices, num_ep_devices, ep_option_keys, ep_option_vals, num_ep_options)
@@ -1377,7 +1384,7 @@ ValueInfo_IsGraphOutput(apis::OrtApi, value_info, is_graph_output) = ccall(Base.
 ValueInfo_IsConstantInitializer(apis::OrtApi, value_info, is_constant_initializer) = ccall(Base.getproperty(apis, :ValueInfo_IsConstantInitializer), OrtStatusPtr, (Ptr{OrtValueInfo}, Ptr{Bool}), value_info, is_constant_initializer)
 ValueInfo_IsFromOuterScope(apis::OrtApi, value_info, is_from_outer_scope) = ccall(Base.getproperty(apis, :ValueInfo_IsFromOuterScope), OrtStatusPtr, (Ptr{OrtValueInfo}, Ptr{Bool}), value_info, is_from_outer_scope)
 Graph_GetName(apis::OrtApi, graph, graph_name) = ccall(Base.getproperty(apis, :Graph_GetName), OrtStatusPtr, (Ptr{OrtGraph}, Ptr{Ptr{Cchar}}), graph, graph_name)
-Graph_GetModelPath(apis::OrtApi, graph, model_path) = ccall(Base.getproperty(apis, :Graph_GetModelPath), OrtStatusPtr, (Ptr{OrtGraph}, Ptr{Ptr{Cwchar_t}}), graph, model_path)
+Graph_GetModelPath(apis::OrtApi, graph, model_path) = ccall(Base.getproperty(apis, :Graph_GetModelPath), OrtStatusPtr, (Ptr{OrtGraph}, Ptr{Ptr{ORT_CHAR_T}}), graph, model_path)
 Graph_GetOnnxIRVersion(apis::OrtApi, graph, onnx_ir_version) = ccall(Base.getproperty(apis, :Graph_GetOnnxIRVersion), OrtStatusPtr, (Ptr{OrtGraph}, Ptr{Int64}), graph, onnx_ir_version)
 Graph_GetNumOperatorSets(apis::OrtApi, graph, num_operator_sets) = ccall(Base.getproperty(apis, :Graph_GetNumOperatorSets), OrtStatusPtr, (Ptr{OrtGraph}, Ptr{Csize_t}), graph, num_operator_sets)
 Graph_GetOperatorSets(apis::OrtApi, graph, domains, opset_versions, num_operator_sets) = ccall(Base.getproperty(apis, :Graph_GetOperatorSets), OrtStatusPtr, (Ptr{OrtGraph}, Ptr{Ptr{Cchar}}, Ptr{Int64}, Csize_t), graph, domains, opset_versions, num_operator_sets)
@@ -1413,7 +1420,7 @@ Node_GetSubgraphs(apis::OrtApi, node, subgraphs, num_subgraphs, attribute_names)
 Node_GetGraph(apis::OrtApi, node, graph) = ccall(Base.getproperty(apis, :Node_GetGraph), OrtStatusPtr, (Ptr{OrtNode}, Ptr{Ptr{OrtGraph}}), node, graph)
 Node_GetEpName(apis::OrtApi, node, out) = ccall(Base.getproperty(apis, :Node_GetEpName), OrtStatusPtr, (Ptr{OrtNode}, Ptr{Ptr{Cchar}}), node, out)
 ReleaseExternalInitializerInfo(apis::OrtApi, input) = ccall(Base.getproperty(apis, :ReleaseExternalInitializerInfo), Cvoid, (Ptr{OrtExternalInitializerInfo},), input)
-ExternalInitializerInfo_GetFilePath(apis::OrtApi, info) = ccall(Base.getproperty(apis, :ExternalInitializerInfo_GetFilePath), Ptr{Cwchar_t}, (Ptr{OrtExternalInitializerInfo},), info)
+ExternalInitializerInfo_GetFilePath(apis::OrtApi, info) = ccall(Base.getproperty(apis, :ExternalInitializerInfo_GetFilePath), Ptr{ORT_CHAR_T}, (Ptr{OrtExternalInitializerInfo},), info)
 ExternalInitializerInfo_GetFileOffset(apis::OrtApi, info) = ccall(Base.getproperty(apis, :ExternalInitializerInfo_GetFileOffset), Int64, (Ptr{OrtExternalInitializerInfo},), info)
 ExternalInitializerInfo_GetByteSize(apis::OrtApi, info) = ccall(Base.getproperty(apis, :ExternalInitializerInfo_GetByteSize), Csize_t, (Ptr{OrtExternalInitializerInfo},), info)
 GetRunConfigEntry(apis::OrtApi, options, config_key) = ccall(Base.getproperty(apis, :GetRunConfigEntry), Ptr{Cchar}, (Ptr{OrtRunOptions}, Ptr{Cchar}), options, config_key)
@@ -1432,7 +1439,7 @@ ReleaseSyncStream(apis::OrtApi, input) = ccall(Base.getproperty(apis, :ReleaseSy
 CopyTensors(apis::OrtApi, env, src_tensors, dst_tensors, stream, num_tensors) = ccall(Base.getproperty(apis, :CopyTensors), OrtStatusPtr, (Ptr{OrtEnv}, Ptr{Ptr{OrtValue}}, Ptr{Ptr{OrtValue}}, Ptr{OrtSyncStream}, Csize_t), env, src_tensors, dst_tensors, stream, num_tensors)
 Graph_GetModelMetadata(apis::OrtApi, graph, out) = ccall(Base.getproperty(apis, :Graph_GetModelMetadata), OrtStatusPtr, (Ptr{OrtGraph}, Ptr{Ptr{OrtModelMetadata}}), graph, out)
 GetModelCompatibilityForEpDevices(apis::OrtApi, ep_devices, num_ep_devices, compatibility_info, out_status) = ccall(Base.getproperty(apis, :GetModelCompatibilityForEpDevices), OrtStatusPtr, (Ptr{Ptr{OrtEpDevice}}, Csize_t, Ptr{Cchar}, Ptr{OrtCompiledModelCompatibility}), ep_devices, num_ep_devices, compatibility_info, out_status)
-CreateExternalInitializerInfo(apis::OrtApi, filepath, file_offset, byte_size, out) = ccall(Base.getproperty(apis, :CreateExternalInitializerInfo), OrtStatusPtr, (Ptr{Cwchar_t}, Int64, Csize_t, Ptr{Ptr{OrtExternalInitializerInfo}}), filepath, file_offset, byte_size, out)
+CreateExternalInitializerInfo(apis::OrtApi, filepath, file_offset, byte_size, out) = ccall(Base.getproperty(apis, :CreateExternalInitializerInfo), OrtStatusPtr, (Ptr{ORT_CHAR_T}, Int64, Csize_t, Ptr{Ptr{OrtExternalInitializerInfo}}), filepath, file_offset, byte_size, out)
 
 # Export all
 for name in names(@__MODULE__; all=true)
